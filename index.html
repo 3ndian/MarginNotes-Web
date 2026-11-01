@@ -4652,7 +4652,7 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
  const side=document.getElementById('side'),scrim=document.getElementById('scrim');if(!side||!scrim)return;
  let st=null;
  const travel=()=>side.offsetWidth*1.25;
- function blocked(){return document.documentElement.classList.contains('locked')||document.body.classList.contains('keeping')||document.querySelector('.qrscan')||(document.getElementById('sw')&&!document.getElementById('sw').hidden)||document.querySelector('.lockv:not([hidden])')}
+ function blocked(){return !!(window.__tiles&&window.__tiles.edit)||document.documentElement.classList.contains('locked')||document.body.classList.contains('keeping')||document.querySelector('.qrscan')||(document.getElementById('sw')&&!document.getElementById('sw').hidden)||document.querySelector('.lockv:not([hidden])')}
  function setP(p){side.style.transition='none';side.style.transform='translateX('+(-(1-p)*travel())+'px)';scrim.hidden=false;scrim.style.transition='none';scrim.style.opacity=String(p)}
  function settle(open){
   side.style.transition='';scrim.style.transition='opacity .25s';
@@ -4672,7 +4672,7 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
   else if(open&&(e.target.closest('#side')||e.target===scrim))st={m:'close',x:t.clientX,y:t.clientY,on:false,lx:t.clientX,lt:Date.now(),v:0,p:1};
  },{passive:true});
  document.addEventListener('touchmove',e=>{
-  if(!st)return;const t=e.touches[0],dx=t.clientX-st.x,dy=t.clientY-st.y;
+  if(!st)return;if(window.__tiles&&window.__tiles.edit){if(st.on)settle(side.classList.contains('open'));st=null;return}const t=e.touches[0],dx=t.clientX-st.x,dy=t.clientY-st.y;
   if(!st.on){
    if(st.w==='p'){
     const sel=window.getSelection&&window.getSelection();
@@ -5594,7 +5594,7 @@ async function sendConn(fl){
   return `<button class="pill${on?' on':''}"${idAttr} data-t="${id}"${edit?' data-edit':''}>${ic(t.icon,18)}${esc(t.label)}</button>`;
  };
  const css=document.createElement('style');
- css.textContent=`.tiles .tgrid{transition:max-height .22s ease;overflow:hidden}.tiles.compact .tctl{display:none}
+ css.textContent=`.tiles .tgrid{transition:max-height .34s cubic-bezier(.3,.8,.3,1);overflow:hidden}.tiles.compact .tctl{display:none}
 .tgrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:4px 10px}
 .tgrid .pill{min-width:0;white-space:nowrap}
 #tgrid{touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
@@ -5616,7 +5616,13 @@ async function sendConn(fl){
 .tview .tl2{justify-content:center;margin-top:12px}.tview .trear{padding:9px 16px;font-weight:500}
 .tctl .done{color:var(--on-accent);background:var(--accent);font-weight:600;padding:6px 14px}
 .tnote{padding:2px 12px 4px;font-size:12.5px;color:var(--muted)}
-.tdrag{position:fixed;z-index:600;pointer-events:none;opacity:.92;box-shadow:var(--shadow);transform:scale(1.06)}`;
+.tdrag{position:fixed;z-index:600;pointer-events:none;opacity:.92;box-shadow:var(--shadow);transform:scale(1.06)}
+.tiles .tgrid .pill{transition:opacity .26s ease,transform .34s cubic-bezier(.3,.8,.3,1),background .12s}
+.tiles .tgrid .pill.thide{opacity:0;transform:translateY(-10px) scale(.94);pointer-events:none}
+.tview .tl2{overflow:hidden;max-height:0;margin-top:0;opacity:0;transition:max-height .32s cubic-bezier(.3,.8,.3,1),margin-top .32s,opacity .22s}
+.tview.open .tl2{max-height:64px;margin-top:12px;opacity:1}
+.tview .tmore svg{transition:transform .32s cubic-bezier(.3,.8,.3,1)}
+@media (prefers-reduced-motion:reduce){.tiles .tgrid,.tiles .tgrid .pill,.tview .tl2,.tview .tmore svg{transition:none!important}}`;
  document.head.appendChild(css);
 
  /* position everything with CSS order, so no tile is ever moved in the page while it is being dragged */
@@ -5628,13 +5634,44 @@ async function sendConn(fl){
  }
  /* scrolling the list down tucks the tiles away: anything past two rows, and the More / Rearrange row, so the list gets the room */
  let compact=false;
+
+ /* More / Fewer slides the hidden tiles open and closed instead of rebuilding the panel */
+ function collapsedH(grid){
+  const n=+grid.dataset.n||0,k=[...grid.children].slice(0,n);if(!k.length||n>=grid.children.length)return null;
+  const g=grid.getBoundingClientRect(),cs=getComputedStyle(grid);
+  return Math.ceil(Math.max(...k.map(e=>e.getBoundingClientRect().bottom))-g.top+(parseFloat(cs.paddingBottom)||0));
+ }
+ function baseMax(grid){if(more)return '';const h=collapsedH(grid);return h==null?'':h+'px'}
+ function paintMore(wrap){
+  const grid=wrap.querySelector('.tgrid'),n=+grid.dataset.n||0;
+  [...grid.children].forEach((el,i)=>{const hide=i>=n&&!more;el.classList.toggle('thide',hide);if(hide)el.setAttribute('inert','');else el.removeAttribute('inert');
+   el.style.transitionDelay=i>=n?(more?Math.min(i-n,8)*28:0)+'ms':''});
+ }
+ function toggleMore(wrap,tree){
+  const grid=wrap.querySelector('.tgrid'),view=wrap.querySelector('.tview');if(!grid)return;
+  more=!more;
+  const from=grid.getBoundingClientRect().height;
+  grid.style.transition='none';grid.style.maxHeight='none';
+  const full=grid.scrollHeight,coll=collapsedH(grid);
+  const to=more?full:(coll==null?full:coll);
+  grid.style.maxHeight=from+'px';void grid.offsetHeight;grid.style.transition='';
+  paintMore(wrap);
+  const mb=wrap.querySelector('[data-tc=more]');
+  if(mb){mb.firstChild.textContent=(more?'Fewer':'More')+' ';const sv=mb.querySelector('svg');if(sv)sv.style.transform=more?'rotate(180deg)':''}
+  if(view)view.classList.toggle('open',more);
+  compact=false;wrap.classList.remove('compact');
+  requestAnimationFrame(()=>{grid.style.maxHeight=to+'px'});
+  clearTimeout(wrap.__mt);
+  wrap.__mt=setTimeout(()=>{if(more)grid.style.maxHeight='';rowsSetup(wrap,tree)},380);
+ }
  function rowsSetup(wrap,tree){
   const grid=wrap.querySelector('.tgrid');if(!grid)return;
-  grid.style.maxHeight='';wrap.classList.remove('compact');
-  const tops=[...new Set([...grid.children].map(k=>k.offsetTop))].sort((a,b)=>a-b);
+  grid.style.maxHeight=baseMax(grid);wrap.classList.remove('compact');
+  const vis=more?[...grid.children]:[...grid.children].slice(0,+grid.dataset.n||grid.children.length);
+  const tops=[...new Set(vis.map(k=>k.offsetTop))].sort((a,b)=>a-b);
   const cs=getComputedStyle(grid),gap=parseFloat(cs.rowGap)||6,pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);
   wrap.__lim=tops.length>2?Math.round(tops[2]-tops[0]-gap+pad):0;
-  wrap.__full=wrap.offsetHeight;wrap.__grid=grid;
+  wrap.__full=wrap.offsetHeight;wrap.__grid=grid;wrap.__tree=tree;
   if(!tree.__tc){tree.__tc=1;tree.addEventListener('scroll',()=>{const w=document.querySelector('#side .tiles');if(w&&!edit)setCompact(w,tree)},{passive:true})}
   if(compact&&tree.scrollTop>0)setCompact(wrap,tree,true);
  }
@@ -5647,7 +5684,7 @@ async function sendConn(fl){
   }else if(compact&&st<=1&&!force)compact=false;
   else if(!force)return;
   wrap.classList.toggle('compact',compact);
-  if(wrap.__grid)wrap.__grid.style.maxHeight=compact&&wrap.__lim?wrap.__lim+'px':'';
+  if(wrap.__grid)wrap.__grid.style.maxHeight=compact&&wrap.__lim?wrap.__lim+'px':baseMax(wrap.__grid);
  }
  function build(){
   const side=document.getElementById('side');if(!side)return;
@@ -5659,14 +5696,16 @@ async function sendConn(fl){
    h+=`<div class="tnote">Tap a top tile to clear its spot, then tap any other tile to put it there. Or drag tiles around.</div><div class="sb tgrid" id="tgrid">${REG.map(t=>tileHTML(t.id,true)).join('')}${REG.map((_,i)=>i).map(i=>`<button class="pill empty" data-empty="${i}" data-edit style="display:none">${ic('plus',18)}Empty</button>`).join('')}<div class="tsep">Hidden: under More</div></div>`;
    h+=`<div class="tctl"><span>Tiles shown</span><button class="tstep" data-tc="minus" aria-label="Show one fewer tile" ${SHOWN<=1?'disabled':''}>−</button><b class="tcount">${SHOWN}</b><button class="tstep" data-tc="plus" aria-label="Show one more tile" ${o.length<=SHOWN?'disabled':''}>+</button><span class="tsp"></span><button class="done" data-tc="done">Done</button></div>`;
   }else{
-   const shown=o.slice(0,SHOWN).filter(Boolean),all=shown.concat(o.slice(SHOWN));
-   h+=`<div class="sb tgrid">${(more?all:shown).map(id=>tileHTML(id,false)).join('')}</div>`;
+   const shown=o.slice(0,SHOWN).filter(Boolean),all=shown.concat(o.slice(SHOWN).filter(Boolean));
+   h+=`<div class="sb tgrid" data-n="${shown.length}">${all.map(id=>tileHTML(id,false)).join('')}</div>`;
    const hid=o.length>SHOWN; /* Rearrange lives inside the opened state; with nothing hidden it takes More's place */
-   h+=`<div class="tctl tview"><div class="tl"><i></i>${hid?`<button class="tmore" data-tc="more">${more?'Fewer':'More'} ${ic('kb',14)}</button>`:`<button class="tmore" data-tc="edit">${ic('sliders',14)}Rearrange</button>`}<i></i></div>${hid&&more?`<div class="tl tl2"><button class="trear" data-tc="edit">${ic('sliders',14)}Rearrange</button></div>`:''}</div>`;
+   h+=`<div class="tctl tview${more?' open':''}"><div class="tl"><i></i>${hid?`<button class="tmore" data-tc="more">${more?'Fewer':'More'} ${ic('kb',14)}</button>`:`<button class="tmore" data-tc="edit">${ic('sliders',14)}Rearrange</button>`}<i></i></div>${hid?`<div class="tl tl2"><button class="trear" data-tc="edit">${ic('sliders',14)}Rearrange</button></div>`:''}</div>`;
   }
   wrap.innerHTML=h;tree.before(wrap);
   if(edit)layout(o);
-  else{if(more){const m=wrap.querySelector('[data-tc=more] svg');if(m)m.style.transform='rotate(180deg)'}rowsSetup(wrap,tree)}
+  else{if(more){const m=wrap.querySelector('[data-tc=more] svg');if(m)m.style.transform='rotate(180deg)'}
+   const g=wrap.querySelector('.tgrid');g.style.transition='none';paintMore(wrap);[...g.children].forEach(e=>{e.style.transition='none'});
+   rowsSetup(wrap,tree);void g.offsetHeight;g.style.transition='';[...g.children].forEach(e=>{e.style.transition=''})}
  }
  const _rs=renderSide;
  renderSide=function(){_rs.apply(this,arguments);build()};
@@ -5676,7 +5715,7 @@ async function sendConn(fl){
   if(c){
    e.stopPropagation();e.preventDefault();
    const k=c.dataset.tc;
-   if(k==='more'){more=!more;build()}
+   if(k==='more'){const w=document.querySelector('#side .tiles'),tr=document.getElementById('tree');if(w&&tr)toggleMore(w,tr);else{more=!more;build()}}
    else if(k==='edit'){edit=true;target=null;build()}
    else if(k==='done'){edit=false;target=null;build()}
    else if(k==='plus'||k==='minus'){
@@ -5716,19 +5755,28 @@ async function sendConn(fl){
   const isEmpty=t.hasAttribute('data-empty'),id=isEmpty?null:t.dataset.t,slot=isEmpty?+t.dataset.empty:-1;
   const x0=e.clientX,y0=e.clientY,r0=t.getBoundingClientRect(),ox=x0-r0.left,oy=y0-r0.top;
   try{t.setPointerCapture(e.pointerId)}catch(_){}
+  const pid=e.pointerId;let active=true,lastY=0,raf=0;
+  const sc=(()=>{let n=grid.parentElement;while(n&&n!==document.body){const o=getComputedStyle(n).overflowY;if((o==='auto'||o==='scroll')&&n.scrollHeight>n.clientHeight+2)return n;n=n.parentElement}return null})();
+  const auto=()=>{raf=0;if(!active||!moved||!sc)return;const r=sc.getBoundingClientRect(),E=56;let d=0;
+   if(lastY<r.top+E)d=-Math.ceil((r.top+E-lastY)/4);else if(lastY>r.bottom-E)d=Math.ceil((lastY-(r.bottom-E))/4);
+   if(d){sc.scrollTop+=Math.max(-14,Math.min(14,d));raf=requestAnimationFrame(auto)}};
   const move=ev=>{
+   if(ev.pointerId!==pid||!active)return;
    if(isEmpty)return;
    if(!moved&&Math.hypot(ev.clientX-x0,ev.clientY-y0)<7)return;
    if(!moved){moved=true;dragging=true;ghost=t.cloneNode(true);ghost.classList.add('tdrag');ghost.style.width=r0.width+'px';ghost.style.order='';document.body.appendChild(ghost);t.classList.add('ph')}
-   ghost.style.left=(ev.clientX-ox)+'px';ghost.style.top=(ev.clientY-oy)+'px';
+   ghost.style.left=(ev.clientX-ox)+'px';ghost.style.top=(ev.clientY-oy)+'px';lastY=ev.clientY;if(sc&&!raf)raf=requestAnimationFrame(auto);
    const el=document.elementsFromPoint(ev.clientX,ev.clientY).find(n=>n!==ghost&&n!==t&&n.matches&&n.matches('#tgrid .pill[data-t],#tgrid .pill[data-empty],#tgrid .tsep'));
    if(!el||el.style.display==='none')return;
    const hit=el.classList.contains('tsep')?{k:'sep'}:el.hasAttribute('data-empty')?{k:'empty',v:+el.dataset.empty}:{k:'tile',v:el.dataset.t};
    if(moveIn(o,o.indexOf(id),hit)){target=null;layout(o)}
   };
   const up=ev=>{
-   t.removeEventListener('pointermove',move);t.removeEventListener('pointerup',up);t.removeEventListener('pointercancel',up);
-   dragging=false;if(ghost)ghost.remove();t.classList.remove('ph');
+   if(!active||(ev.pointerId!=null&&ev.pointerId!==pid))return;active=false;
+   window.removeEventListener('pointermove',move,true);window.removeEventListener('pointerup',up,true);window.removeEventListener('pointercancel',up,true);
+   t.removeEventListener('lostpointercapture',lost);document.removeEventListener('touchend',tend,true);document.removeEventListener('touchcancel',tend,true);window.removeEventListener('blur',bail);document.removeEventListener('visibilitychange',bail);
+   if(raf)cancelAnimationFrame(raf);
+   dragging=false;document.querySelectorAll('.tdrag').forEach(g=>g.remove());if(ghost)ghost.remove();t.classList.remove('ph');
    if(moved){setOrder(o);build();return}
    if(ev.type==='pointercancel')return;
    /* a tap */
@@ -5741,7 +5789,11 @@ async function sendConn(fl){
    if(free<0){toast('Tap one of the top tiles first to make room');return}
    o[free]=id;o.splice(from,1);target=null;setOrder(o);layout(o);
   };
-  t.addEventListener('pointermove',move);t.addEventListener('pointerup',up);t.addEventListener('pointercancel',up);
+  /* failsafes: if the finger lifts without a pointerup reaching us, or the tile is rebuilt mid-drag, still let go cleanly */
+  const bail=()=>up({type:'pointercancel',pointerId:pid}),lost=()=>setTimeout(()=>{if(active)bail()},60);
+  const tend=ev=>{if(!ev.touches||!ev.touches.length)setTimeout(()=>{if(active)bail()},120)};
+  window.addEventListener('pointermove',move,true);window.addEventListener('pointerup',up,true);window.addEventListener('pointercancel',up,true);
+  t.addEventListener('lostpointercapture',lost);document.addEventListener('touchend',tend,true);document.addEventListener('touchcancel',tend,true);window.addEventListener('blur',bail);document.addEventListener('visibilitychange',bail);
  });
  window.__tiles={order,setOrder,reg:REG,get edit(){return edit},get target(){return target},build};
 })();
@@ -5871,6 +5923,14 @@ async function sendConn(fl){
 #sstv .ss_tb:active:not(:disabled){transform:scale(.96)}
 #sstv .ss_tb:disabled{opacity:.4}
 #sstv .ss_tb.pri{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#sstv .ss_it{position:relative;border-bottom:4px solid #111}
+#sstv .ss_it img{display:block;width:100%;height:auto;cursor:zoom-in}
+#sstv .ss_it .ss_bd{position:absolute;left:8px;top:8px;padding:3px 10px;border-radius:99px;background:rgba(0,0,0,.62);color:#fff;font-size:12px;pointer-events:none}
+#sstv .ss_it .ss_ck,#sstv .ss_it .ss_dx{position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:rgba(0,0,0,.5);color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;padding:0}
+#sstv .ss_it .ss_ck{right:8px;top:8px}#sstv .ss_it .ss_dx{right:8px;bottom:8px;width:30px;height:30px;font-size:13px;opacity:.8}
+#sstv .ss_it.sel .ss_ck{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+#sstv .ss_it.sel::after{content:'';position:absolute;inset:0;border:3px solid var(--accent);pointer-events:none}
+#sstv .ss_wait{padding:16px 10px;text-align:center;color:#9a9a9a;font-size:13px;background:repeating-linear-gradient(45deg,#0a0a0a,#0a0a0a 10px,#101010 10px,#101010 20px)}
 #sstv .ss_gal{display:flex;gap:8px;overflow:auto;padding:4px 0}
 #sstv .ss_gal img{height:64px;border-radius:8px;border:2px solid transparent;cursor:pointer}
 #sstv .ss_gal img.on{border-color:var(--accent)}
@@ -5904,7 +5964,7 @@ async function sendConn(fl){
  function open(tab){
   try{closeSide()}catch(e){}
   if(ST)return;
-  ST={tab:tab||'r',pick:0,paused:false,listening:false,dec:null,mic:null,gal:[],sel:-1,tx:null,send:{vis:8,fit:'cover',cap:'',fs:20,img:null,z:1,ox:0,oy:0}};
+  ST={tab:tab||'r',pick:0,paused:false,listening:false,dec:null,mic:null,live:false,rsel:new Set(),tx:null,send:{vis:8,fit:'cover',cap:'',fs:20,img:null,z:1,ox:0,oy:0}};
   const el=document.createElement('div');el.id='sstv';
   el.innerHTML=`<div class="ss_sh"><h2>SSTV</h2><button class="ss_sx" data-ss="close" aria-label="Close">✕</button></div>
   <div class="ss_stabs"><button data-ss="tab" data-v="r">Receive</button><button data-ss="tab" data-v="s">Send</button></div><div class="ss_sb" id="ssb"></div>`;
@@ -5919,38 +5979,90 @@ async function sendConn(fl){
   if(ST.tab==='r')drawRecv();else drawSend();
  }
 
+ /* ---------- the roll: every received picture stacks up here, saved until you clear it ---------- */
+ let ROLL=null,rollT=0,rollLoading=null;const ROLLK='sstv-roll',ROLLMAX=60;
+ function rollLoad(){
+  if(ROLL)return;if(rollLoading)return;
+  rollLoading=idbGet(ROLLK).then(r=>{ROLL=Array.isArray(r)?r.filter(x=>x&&typeof x.png==='string'&&x.png.startsWith('data:image/png')&&x.h>0&&x.h<=1024):[];rollLoading=null;if(ST){drawRoll();syncBtns()}});
+ }
+ function rollSave(){clearTimeout(rollT);rollT=setTimeout(()=>{try{idbSet(ROLLK,ROLL)}catch(e){}},300)}
+ function pngUrl(img){
+  const c=document.createElement('canvas');c.width=W;c.height=img.h;const x=c.getContext('2d'),im=x.createImageData(W,img.h);
+  for(let i=0,j=0;i<im.data.length;i+=4,j+=3){im.data[i]=img.rgb[j];im.data[i+1]=img.rgb[j+1];im.data[i+2]=img.rgb[j+2];im.data[i+3]=255}
+  x.putImageData(im,0,0);return c.toDataURL('image/png');
+ }
+ function pushRoll(img,partial){
+  if(!ROLL)ROLL=[];
+  ROLL.push({id:uid(),ts:Date.now(),h:img.h,mode:(img.mode&&img.mode.name)||'SSTV',part:!!partial,png:pngUrl(img)});
+  while(ROLL.length>ROLLMAX){const g=ROLL.shift();if(ST)ST.rsel.delete(g.id)}
+  ST.live=false;rollSave();drawRoll();
+  const w=$$('sswin'),wt=$$('sswait');if(w&&!ST.noFollow)w.scrollTop=w.scrollHeight;
+ }
+ function drawRoll(){
+  const r=$$('ssroll');if(!r||!ST)return;
+  const list=ROLL||[],idle=!ST.live;
+  r.innerHTML=list.map((x,i)=>{const t=new Date(x.ts),hm=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+   return `<div class="ss_it${ST.rsel.has(x.id)?' sel':''}" data-id="${x.id}"><img src="${x.png}" data-ss="item" data-id="${x.id}" alt="Picture ${i+1}"><span class="ss_bd">${esc(x.mode)}${x.part?' · partial':''} · ${hm}</span><button class="ss_ck" data-ss="chk" data-id="${x.id}" aria-label="Select picture ${i+1}">${ST.rsel.has(x.id)?'✓':''}</button><button class="ss_dx" data-ss="del" data-id="${x.id}" aria-label="Remove picture ${i+1}">✕</button></div>`}).join('');
+  const lv=$$('sslive'),wt=$$('sswait');
+  if(lv)lv.hidden=!(ST.live||!list.length);
+  if(wt)wt.hidden=!(idle&&list.length&&ST.listening);
+  const n=ST.rsel.size,c=$$('sscount'),sl=$$('sssel');
+  if(c)c.textContent=list.length?'· '+list.length:'';
+  if(sl)sl.textContent=n?`${n} selected. Save puts ${n>1?'them':'it'} in ${n>1?'one tall image, top to bottom':'a single image'}.`:'Tap the circle on a picture to select it. They stay here until you clear them.';
+  syncBtns();
+ }
+ function selected(){return (ROLL||[]).filter(x=>ST.rsel.has(x.id))}
+ async function stitch(items){
+  const gap=items.length>1?6:0,cap=16000;let tot=0,use=[];
+  for(const it of items){if(tot+it.h+(use.length?gap:0)>cap)break;tot+=it.h+(use.length?gap:0);use.push(it)}
+  const c=document.createElement('canvas');c.width=W;c.height=tot;const x=c.getContext('2d');x.fillStyle='#111';x.fillRect(0,0,W,tot);
+  let y=0;for(const it of use){const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=it.png});x.drawImage(im,0,y);y+=it.h+gap}
+  const bl=await new Promise(r=>c.toBlob(r,'image/png'));return {blob:bl,n:use.length,h:tot};
+ }
+ async function outBlob(){
+  const sel=selected();
+  if(sel.length){const o=await stitch(sel);if(o.n<sel.length)toast('Too long for one image: used the first '+o.n);return {blob:o.blob,h:o.h,name:sel.length>1?'roll-'+sel.length:'selected'}}
+  if(ST.live&&ST.shown){return {blob:await pngOf(ST.shown),h:ST.shown.h,name:modeSlug(ST.shown.mode)}}
+  const last=(ROLL||[]).slice(-1);if(last.length){const o=await stitch(last);return {blob:o.blob,h:o.h,name:modeSlug({name:last[0].mode})}}
+  if(ST.shown)return {blob:await pngOf(ST.shown),h:ST.shown.h,name:modeSlug(ST.shown.mode)};
+  return null;
+ }
+
  /* ---------- receive ---------- */
  function drawRecv(){
   const b=$$('ssb');
-  b.innerHTML=`<div class="ss_cols"><div class="ss_view"><div class="ss_win" id="sswin"><canvas class="ss_pic" id="sscv" width="320" height="240" data-ss="full" style="cursor:zoom-in"></canvas></div>
+  b.innerHTML=`<div class="ss_cols"><div class="ss_view"><div class="ss_win" id="sswin"><div id="ssroll"></div><div id="sslive"><canvas class="ss_pic" id="sscv" width="320" height="240" data-ss="full" style="cursor:zoom-in"></canvas></div><div class="ss_wait" id="sswait" hidden>The next picture appears here</div></div>
   <div class="ss_st" id="sstx">Not listening</div><p class="ss_sub" id="sssub"></p>
   <div class="ss_bar"><i id="ssbar"></i></div><div class="ss_lv"><i id="sslv"></i></div></div><div class="ss_ctl"><p class="hint">Hold this device near a speaker or radio playing a slow-scan picture. It draws as it arrives. Keep it quiet. Tap the picture to see it full screen.</p>
-  <div class="ss_row"><button class="ss_tb pri" data-ss="listen" id="sslisten">${ic('recv',18)}Listen</button><button class="ss_tb" data-ss="pause" id="sspause" disabled>Pause</button><button class="ss_tb" data-ss="clear">Clear</button></div>
+  <div class="ss_row"><button class="ss_tb pri" data-ss="listen" id="sslisten">${ic('recv',18)}Listen</button><button class="ss_tb" data-ss="pause" id="sspause" disabled>Pause</button><button class="ss_tb" data-ss="clear" id="ssclear">Clear all</button></div>
+  <h4>Pictures in the roll <span id="sscount"></span></h4><p class="hint" id="sssel">Tap the circle on a picture to select it. They stay here until you clear them.</p>
+  <div class="ss_chips" id="sspick"><button data-ss="seln" data-v="2">Last 2</button><button data-ss="seln" data-v="3">Last 3</button><button data-ss="seln" data-v="5">Last 5</button><button data-ss="seln" data-v="all">All</button><button data-ss="seln" data-v="0">None</button></div>
   <div class="ss_row"><button class="ss_tb" data-ss="save" id="sssave" disabled>${ic('dl',18)}Save…</button><button class="ss_tb" data-ss="more" id="ssmore" disabled>Copy or add to a page</button></div>
   <h4>Missed the start?</h4><p class="hint">Pick the mode, then tap Start now. It begins at the next line it hears.</p>
   <div class="ss_chips" id="sschips">${MODEL.map(m=>`<button data-ss="mode" data-v="${m[0]}">${m[1]}</button>`).join('')}</div>
   <div class="ss_row"><button class="ss_tb" data-ss="force" id="ssforce" disabled>Start now</button><button class="ss_tb" data-ss="file">Decode a recording…</button></div>
-  <h4>This session</h4><div class="ss_gal" id="ssgal"></div></div></div>`;
+</div></div>`;
   const cv=$$('sscv'),cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,320,240);
-  if(ST.shown)paintImg(ST.shown.rgb,ST.shown.h);
-  syncBtns();drawGal();
+  if(ST.live&&ST.shown){cv.height=ST.shown.h;paintImg(ST.shown.rgb,ST.shown.h)}
+  syncBtns();drawRoll();rollLoad();
  }
  function paintImg(rgb,h,line){
   for(const id of ['sscv','ssfullcv']){
-   const cv=$$(id);if(!cv)continue;if(cv.height!==h)cv.height=h;
+   const cv=$$(id);if(!cv||cv.dataset.static)continue;if(cv.height!==h)cv.height=h;
    const cx=cv.getContext('2d'),im=cx.createImageData(W,h),o=im.data;
    for(let i=0,j=0;i<o.length;i+=4,j+=3){o[i]=rgb[j];o[i+1]=rgb[j+1];o[i+2]=rgb[j+2];o[i+3]=255}
    cx.putImageData(im,0,0);
   }
-  const win=$$('sswin');
-  if(win&&line!=null&&ST&&!ST.noFollow&&win.scrollHeight>win.clientHeight+4)win.scrollTop=Math.max(0,win.scrollHeight*(line/h)-win.clientHeight*0.8);
+  const win=$$('sswin'),lv=$$('sslive');
+  if(win&&lv&&line!=null&&ST&&!ST.noFollow&&win.scrollHeight>win.clientHeight+4){const cv=$$('sscv');win.scrollTop=Math.max(ROLL&&ROLL.length?lv.offsetTop-44:0,lv.offsetTop+cv.clientHeight*(line/h)-win.clientHeight*0.8)}
  }
  /* full-screen viewer: scales to fit, pinch or scroll to zoom, drag to move; keeps updating while a picture arrives */
- function openFull(){
+ function openFull(item){
   if(!ST||document.getElementById('ssfull'))return;
   const el=document.createElement('div');el.id='ssfull';
   el.style.cssText='position:fixed;inset:0;z-index:55;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none';
-  const h=ST.shown?ST.shown.h:240,cv=document.createElement('canvas');cv.id='ssfullcv';cv.width=W;cv.height=h;
+  const h=item?item.h:(ST.shown?ST.shown.h:240),cv=document.createElement('canvas');cv.id='ssfullcv';cv.width=W;cv.height=h;
+  if(item){cv.dataset.static='1';const im=new Image();im.onload=()=>{cv.getContext('2d').drawImage(im,0,0)};im.src=item.png}
   cv.style.cssText='max-width:100vw;max-height:100vh;width:auto;height:auto;image-rendering:auto;transform-origin:50% 50%';
   el.appendChild(cv);
   const x=document.createElement('button');x.textContent='✕';x.setAttribute('aria-label','Close');x.style.cssText='position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.5);color:#fff;font-size:18px';
@@ -5968,7 +6080,7 @@ async function sendConn(fl){
   el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
   el.addEventListener('wheel',e=>{e.preventDefault();z.k=Math.max(1,Math.min(8,z.k*(e.deltaY<0?1.12:1/1.12)));if(z.k===1){z.x=0;z.y=0}ap()},{passive:false});
   el.addEventListener('dblclick',()=>{z.k=1;z.x=0;z.y=0;ap()});
-  document.body.appendChild(el);if(ST.shown)paintImg(ST.shown.rgb,ST.shown.h);
+  document.body.appendChild(el);if(!item&&ST.shown)paintImg(ST.shown.rgb,ST.shown.h);
  }
  function syncBtns(){
   if(!ST||ST.tab!=='r')return;
@@ -5976,7 +6088,9 @@ async function sendConn(fl){
   l.lastChild.textContent=ST.listening?'Stop':'Listen';
   p.disabled=!ST.listening;p.textContent=ST.paused?'Resume':'Pause';
   f.disabled=!ST.listening||!ST.pick||(ST.dec&&ST.dec.state==='image');
-  const has=!!ST.shown;s.disabled=!has;m.disabled=!has;
+  const has=!!(ST.shown||(ROLL&&ROLL.length));s.disabled=!has;m.disabled=!has;
+  const n=ST.rsel?ST.rsel.size:0;s.lastChild.textContent=n>1?`Save ${n} as one…`:n===1?'Save selected…':'Save…';
+  const cl=$$('ssclear');if(cl&&!ST.clearArm)cl.textContent='Clear all';
   document.querySelectorAll('#sschips button').forEach(c=>c.classList.toggle('on',+c.dataset.v===ST.pick));
  }
  const say=(t,sub)=>{const a=$$('sstx'),b=$$('sssub');if(a&&t!=null)a.textContent=t;if(b&&sub!=null)b.textContent=sub};
@@ -5985,23 +6099,20 @@ async function sendConn(fl){
   d.onUpdate=(k,dd)=>{
    if(!ST||ST.dec!==d)return;
    const h=dd.mode.h||E.H;
-   if(k==='vis'){ST.shown=null;ST.noFollow=false;const w0=$$('sswin');if(w0)w0.scrollTop=0;say('Receiving '+dd.mode.name+'…','Header heard. The picture draws line by line.');const cv=$$('sscv');if(cv){cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,W,h)}syncBtns();return}
+   if(k==='vis'){ST.shown=null;ST.noFollow=false;ST.live=true;say('Receiving '+dd.mode.name+'…','Header heard. The picture draws line by line.');const cv=$$('sscv');if(cv){cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,W,h)}drawRoll();
+    /* bring the new picture into view with the bottom of the last one still showing above it */
+    const w0=$$('sswin'),lv=$$('sslive');if(w0&&lv)w0.scrollTop=ROLL&&ROLL.length?Math.max(0,lv.offsetTop-44):0;syncBtns();return}
    ST.shown={rgb:dd.rgb.slice(0,W*h*3),h,mode:dd.mode};paintImg(dd.rgb,h,dd.line);
    const bar=$$('ssbar');if(bar)bar.style.width=Math.round(dd.line/h*100)+'%';
    if(k==='done'){
-    say('Done · '+dd.mode.name,'Saved to this session. Listening for the next one.');
+    say('Done · '+dd.mode.name,ST.fromFile?'Added to the roll. Reading on for more…':'Added to the roll. Listening for the next one.');
     try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}
-    const c=document.createElement('canvas');c.width=W;c.height=h;const x=c.getContext('2d'),im=x.createImageData(W,h);for(let i=0,j=0;i<im.data.length;i+=4,j+=3){im.data[i]=ST.shown.rgb[j];im.data[i+1]=ST.shown.rgb[j+1];im.data[i+2]=ST.shown.rgb[j+2];im.data[i+3]=255}x.putImageData(im,0,0);
-    ST.gal.push({url:c.toDataURL('image/png'),rgb:ST.shown.rgb,h,mode:dd.mode});ST.sel=ST.gal.length-1;drawGal();
-    if(ST.listening&&!ST.fromFile){ST.dec=newDecoder(ST.rate)}
+    pushRoll(ST.shown,false);
+    if((ST.listening&&!ST.fromFile)||(ST.fromFile&&ST.fileRun))ST.dec=newDecoder(ST.rate);
     syncBtns();
    }else{say('Receiving '+dd.mode.name+'… '+Math.round(dd.line/h*100)+'%',null);syncBtns()}
   };
   return d;
- }
- function drawGal(){
-  const g=$$('ssgal');if(!g)return;
-  g.innerHTML=ST.gal.length?ST.gal.map((x,i)=>`<img src="${x.url}" data-ss="gal" data-i="${i}" class="${i===ST.sel?'on':''}" alt="">`).join(''):'<span class="hint">Finished pictures collect here.</span>';
  }
  async function startListen(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return toast('The microphone is not available here');
@@ -6022,10 +6133,11 @@ async function sendConn(fl){
   say('Listening…','Waiting for a picture. Start it on the other device.');
   ST.lvT=setInterval(()=>{if(!ST){return}const l=$$('sslv');if(l)l.style.width=Math.min(100,ST.peak*260)+'%';if(ST.peak>0.01)ST.heard=true;if(ST.peak>0.02)ST.lastLoud=Date.now();ST.peak*=.6;
    if(ST.listening&&!ST.paused&&ST.dec&&ST.dec.state==='image'&&Date.now()-ST.lastLoud>5000){const dd=ST.dec,hh=dd.mode.h||E.H,pct=Math.round(dd.line/hh*100);ST.dec=newDecoder(ST.rate);say('Signal ended at '+pct+'%','Showing the part that arrived. Save it, or start again.');
-    if(ST.shown){const c=document.createElement('canvas');c.width=W;c.height=ST.shown.h;const x=c.getContext('2d'),im=x.createImageData(W,ST.shown.h);for(let i=0,j=0;i<im.data.length;i+=4,j+=3){im.data[i]=ST.shown.rgb[j];im.data[i+1]=ST.shown.rgb[j+1];im.data[i+2]=ST.shown.rgb[j+2];im.data[i+3]=255}x.putImageData(im,0,0);ST.gal.push({url:c.toDataURL('image/png'),rgb:ST.shown.rgb,h:ST.shown.h,mode:ST.shown.mode});ST.sel=ST.gal.length-1;drawGal()}syncBtns()}
+    if(ST.shown)pushRoll(ST.shown,true);syncBtns()}
    if(ST.listening&&!ST.heard&&Date.now()-ST.t0>9000)say(null,'Cannot hear anything yet. Turn the sound up and bring it closer.')},200);
   syncBtns();
  }
+ let FT=0;
  let WL=null;
  async function awake(on){try{if(on){if(navigator.wakeLock&&!WL){WL=await navigator.wakeLock.request('screen');WL.addEventListener('release',()=>{WL=null})}}else if(WL){const w=WL;WL=null;await w.release()}}catch(e){}}
  document.addEventListener('visibilitychange',()=>{if(ST&&(ST.listening||ST.tx)&&document.visibilityState==='visible')awake(true)});
@@ -6037,12 +6149,14 @@ async function sendConn(fl){
  async function decodeFile(file){
   stopListen();say('Reading the recording…','');
   let ab;try{ab=await new (window.AudioContext||window.webkitAudioContext)().decodeAudioData(await file.arrayBuffer())}catch(e){return say('Could not read that audio file','Try a WAV or MP3 recording.')}
-  const x=ab.getChannelData(0),d=ST.dec=newDecoder(ab.sampleRate);ST.fromFile=true;ST.shown=null;
-  for(let i=0;i<x.length&&ST&&ST.dec===d;i+=ab.sampleRate){d.push(x.slice(i,Math.min(x.length,i+ab.sampleRate)));await new Promise(r=>setTimeout(r,0))}
-  if(ST&&ST.dec===d&&d.state==='wait')say('No picture found','This recording did not contain a slow-scan header. Try Start now with a mode picked.');
+  const x=ab.getChannelData(0),tok=++FT;ST.rate=ab.sampleRate;ST.dec=newDecoder(ab.sampleRate);ST.fromFile=true;ST.fileRun=true;ST.shown=null;ST.live=false;const before=ROLL?ROLL.length:0,step=Math.round(ab.sampleRate/8);
+  for(let i=0;i<x.length&&ST&&ST.fileRun&&tok===FT;i+=step){ST.dec.push(x.slice(i,Math.min(x.length,i+step)));if(i%(step*8)===0)await new Promise(r=>setTimeout(r,0))}
+  if(!ST||tok!==FT)return;ST.fileRun=false;
+  const got=(ROLL?ROLL.length:0)-before;
+  if(!got&&ST.dec&&ST.dec.state==='wait')say('No picture found','This recording did not contain a slow-scan header. Try Start now with a mode picked.');
+  else if(got)say(got+' picture'+(got>1?'s':'')+' found','Added to the roll.');
   syncBtns();
  }
- function curImage(){const g=ST.sel>=0&&ST.gal[ST.sel],sh=ST.shown;return g&&(!sh||document.activeElement&&0)?g:(sh?{rgb:sh.rgb,h:sh.h,mode:sh.mode}:g)}
  async function pngOf(img){
   const c=document.createElement('canvas');c.width=W;c.height=img.h;const x=c.getContext('2d'),im=x.createImageData(W,img.h);
   for(let i=0,j=0;i<im.data.length;i+=4,j+=3){im.data[i]=img.rgb[j];im.data[i+1]=img.rgb[j+1];im.data[i+2]=img.rgb[j+2];im.data[i+3]=255}
@@ -6130,20 +6244,26 @@ async function sendConn(fl){
   const m=e.target.closest('[data-ss]');if(!m||!ST)return;const k=m.dataset.ss;
   if(k==='close')return close();
   if(k==='tab'){if(ST.tab!==m.dataset.v){ST.tab=m.dataset.v;if(ST.tab==='s'&&ST.listening)stopListen();stopTx();draw()}return}
-  if(k==='listen'){if(ST.listening){stopListen();say('Stopped','');syncBtns()}else{ST.shown=null;await startListen()}return}
+  if(k==='listen'){if(ST.listening){stopListen();say('Stopped','');syncBtns()}else{ST.shown=null;ST.live=false;await startListen();drawRoll()}return}
   if(k==='pause'){
    if(!ST.listening)return;
    if(!ST.paused){ST.paused=true;ST.pauseAt=Date.now();say(null,'Paused. Tap Resume to carry on. The part you skip stays blank.')}
    else{ST.paused=false;if(ST.dec)ST.dec.resume(Date.now()-ST.pauseAt);say(null,'Listening again…')}
    syncBtns();return;
   }
-  if(k==='clear'){const rate=ST.rate;ST.shown=null;ST.sel=-1;if(ST.listening)ST.dec=newDecoder(rate);ST.paused=false;drawRecv();if(ST.listening)say('Listening…','Waiting for a picture.');return}
+  if(k==='clear'){
+   const has=(ROLL&&ROLL.length)||ST.live;
+   if(has&&!ST.clearArm){ST.clearArm=true;m.textContent='Tap again to clear all';m.classList.add('pri');clearTimeout(ST.clearT);ST.clearT=setTimeout(()=>{ST.clearArm=false;const b=$$('ssclear');if(b){b.textContent='Clear all';b.classList.remove('pri')}},3000);return}
+   ST.clearArm=false;clearTimeout(ST.clearT);const rate=ST.rate;ST.fileRun=false;FT++;ST.shown=null;ST.live=false;ROLL=[];ST.rsel=new Set();rollSave();if(ST.listening)ST.dec=newDecoder(rate);ST.paused=false;drawRecv();say(ST.listening?'Listening…':'Cleared',ST.listening?'Waiting for a picture.':'');return}
   if(k==='mode'){ST.pick=+m.dataset.v;syncBtns();return}
   if(k==='force'){if(ST.dec&&ST.pick){ST.dec.force(ST.pick)}return}
   if(k==='file'){const f=document.createElement('input');f.type='file';f.accept='audio/*,.wav';f.style.cssText='position:fixed;left:-999px;opacity:0';document.body.appendChild(f);f.onchange=()=>{const x=f.files[0];f.remove();if(x)decodeFile(x)};f.addEventListener('cancel',()=>f.remove());f.click();return}
-  if(k==='gal'){const g=ST.gal[+m.dataset.i];if(g){ST.sel=+m.dataset.i;ST.shown={rgb:g.rgb,h:g.h,mode:g.mode};paintImg(g.rgb,g.h);say('Picture from this session · '+g.mode.name,'');drawGal();syncBtns()}return}
-  if(k==='save'){const img=ST.shown;if(!img)return;const bl=await pngOf(img);saveTo(bl,'sstv-'+stamp()+'-'+modeSlug(img.mode)+'.png');return}
-  if(k==='more'){const img=ST.shown;if(!img)return;const bl=await pngOf(img),bytes=new Uint8Array(await bl.arrayBuffer());window.__imgRecv(null,{d:b64u(bytes),title:'SSTV picture',w:W,h:img.h},'',null,null);return}
+  if(k==='item'){const it=(ROLL||[]).find(x=>x.id===m.dataset.id);if(it)openFull(it);return}
+  if(k==='chk'){const id=m.dataset.id;if(ST.rsel.has(id))ST.rsel.delete(id);else ST.rsel.add(id);const keep=$$('sswin').scrollTop;drawRoll();$$('sswin').scrollTop=keep;return}
+  if(k==='del'){const id=m.dataset.id;ROLL=(ROLL||[]).filter(x=>x.id!==id);ST.rsel.delete(id);rollSave();const keep=$$('sswin').scrollTop;drawRoll();$$('sswin').scrollTop=keep;return}
+  if(k==='seln'){const v=m.dataset.v,l=ROLL||[];ST.rsel=new Set(v==='0'?[]:v==='all'?l.map(x=>x.id):l.slice(-(+v)).map(x=>x.id));drawRoll();return}
+  if(k==='save'){const o=await outBlob();if(!o)return;saveTo(o.blob,'sstv-'+stamp()+'-'+o.name+'.png');return}
+  if(k==='more'){const o=await outBlob();if(!o)return;const bytes=new Uint8Array(await o.blob.arrayBuffer());window.__imgRecv(null,{d:b64u(bytes),title:'SSTV picture',w:W,h:o.h},'',null,null);return}
   if(k==='full'){openFull();return}
   if(k==='pickimg')return pickImage();
   if(k==='svis'){ST.send.vis=+m.dataset.v;markSend();renderPv();return}
@@ -7783,6 +7903,19 @@ document.addEventListener('click',e=>{
  }
 });
 $('#scrim').addEventListener('click',closeSide);
+/* while the left panel is open, the page peeking beside it is untouchable: nothing under it can be focused or edited, and a tap outside only closes the panel */
+(function(){
+ const side=document.getElementById('side'),scrim=document.getElementById('scrim');if(!side||!scrim)return;
+ const pageEls=()=>['top','scroller','fab','acc'].map(i=>document.getElementById(i)).filter(Boolean);
+ function sync(){
+  const on=innerWidth<900&&side.classList.contains('open');
+  if(on){const a=document.activeElement;if(a&&a!==document.body&&!side.contains(a)&&a.blur)a.blur()}
+  pageEls().forEach(e=>{try{e.inert=on}catch(_){}});
+ }
+ new MutationObserver(sync).observe(side,{attributes:true,attributeFilter:['class']});
+ addEventListener('resize',sync);
+ sync();
+})();
 $('#top').addEventListener('pointerdown',e=>{if(e.target.closest('#bUndo,#bRedo'))e.preventDefault()});
 $('#fab').innerHTML=ic('plus',26);
 $('#fab').addEventListener('click',()=>newNote(S.cur));
