@@ -1169,10 +1169,10 @@ function closeSheet(){$('#sw').hidden=true;$('#sheet').innerHTML=''}
 $('#swbg').addEventListener('click',closeSheet);
 function nodeMenu(id){
  const n=S.nodes[id];
- if(id==='root')return openSheet(`<h3>Home</h3><button class="opt" data-m="paper">${ic('pal')}Paper &amp; colors</button>${window.NativeBridge&&NativeBridge.openHtml?`<button class="opt" data-m="openhtml">${ic('page')}Open an HTML file</button>`:''}<button class="opt" data-m="all">${ic('all')}All notes</button><button class="opt" data-m="canvas">${ic('table')}Canvas</button><button class="opt" data-m="qrscan">${ic('scan')}Scan QR code</button><button class="opt" data-snd="listen">${ic('recv')}Listen for sound</button><button class="opt" data-xf="pick">${ic('send')}Send a file</button><button class="opt" data-m="devices">${ic('sliders')}Devices and trust</button><button class="opt" data-m="note" data-id="root">${ic('page')}New page</button><button class="opt" data-m="dbpage" data-id="root">${ic('table')}New database page</button><button class="opt" data-m="folder" data-id="root">${ic('folder')}New folder</button>`);
+ if(id==='root')return openSheet(`<h3>Home</h3><button class="opt" data-m="paper">${ic('pal')}Paper &amp; colors</button>${window.NativeBridge&&NativeBridge.openHtml?`<button class="opt" data-m="openhtml">${ic('page')}Open an HTML file</button>`:''}<button class="opt" data-m="all">${ic('all')}All notes</button><button class="opt" data-pt="open" data-id="root">${ic('page')}Print…</button><button class="opt" data-m="canvas">${ic('table')}Canvas</button><button class="opt" data-m="qrscan">${ic('scan')}Scan QR code</button><button class="opt" data-snd="listen">${ic('recv')}Listen for sound</button><button class="opt" data-xf="pick">${ic('send')}Send a file</button><button class="opt" data-m="devices">${ic('sliders')}Devices and trust</button><button class="opt" data-m="note" data-id="root">${ic('page')}New page</button><button class="opt" data-m="dbpage" data-id="root">${ic('table')}New database page</button><button class="opt" data-m="folder" data-id="root">${ic('folder')}New folder</button>`);
  openSheet(`<h3>${esc(nm(n))}</h3><button class="opt" data-m="paper">${ic('pal')}Paper &amp; colors</button>
  ${n.kind==='page'&&id===S.cur?`<button class="opt" data-m="find">${ic('search')}Find on this page</button><button class="opt" data-m="stats">${ic('all')}Word count</button>`:''}
- <button class="opt" data-m="pin" data-id="${id}">${ic('star')}${(S.pins||[]).includes(id)?'Unpin from sidebar':'Pin to sidebar'}</button>
+ <button class="opt" data-pt="open" data-id="${id}">${ic('page')}Print…</button><button class="opt" data-m="pin" data-id="${id}">${ic('star')}${(S.pins||[]).includes(id)?'Unpin from sidebar':'Pin to sidebar'}</button>
  ${n.kind==='page'?`<button class="opt" data-m="cvadd" data-id="${id}">${ic('table')}Add to canvas</button><button class="opt" data-m="share" data-id="${id}">${ic('send')}Share…</button>`:''}
  <button class="opt" data-m="note" data-id="${id}">${ic('page')}New page inside</button>
  <button class="opt" data-m="dbpage" data-id="${id}">${ic('table')}New database page inside</button>
@@ -2944,8 +2944,30 @@ var SSTV=(function(){
   msr(v){return v*this.fs/1000/this.r}
   mr(v){return this.msr(v)*(this.sc||1)}
   step(){
-   if(this.state==='wait')this.findVis();
+   if(this.state==='wait'){this.findVis();if(this.state==='wait'&&this.blindOn!==false)this.blindScan()}
    if(this.state==='image')this.decodeLines();
+  }
+  /* no header heard (we joined late): look for the steady beat of sync pulses and work out the mode from its period */
+  blindScan(){
+   const fs=this.fs;if(this.n-(this.lastBlind||0)<fs*0.8)return;this.lastBlind=this.n;
+   const MS=[[8,9],[40,SYNC],[44,SYNC]];
+   for(const [vis,sy] of MS){
+    const m=MODES[vis],lm=this.msr(lineMs(m)),tol=this.msr(7);
+    const lo=Math.max(this.blindFrom||0,this.n-Math.round(lm*12)),hi=this.n-Math.round(lm*7.5);
+    for(let a=lo;a<=hi;a+=lm*0.5){
+     const p0=this.findSync(a,a+lm*0.5,sy);if(p0<0)continue;
+     let cnt=1,exp=p0+lm,last=p0;
+     for(let k=0;k<6;k++){const f=this.findSync(exp-tol,exp+tol,sy);if(f<0)break;cnt++;last=f;exp=f+lm}
+     if(cnt<6)continue;
+     /* walk back to the first pulse of this run: that is the first line we actually heard */
+     let first=p0,back=0;
+     for(;back<400;back++){const e=first-lm,f=e-tol<0?-1:this.findSync(e-tol,e+tol,sy);if(f<0)break;first=f}
+     this.mode=m;this.state='image';this.t0=first;this.expect=first-this.msr(3);this.line=0;this.hunt=true;this.forced=true;this.gapMs=0;this.nPause=first;this.blind=true;this.miss=0;this.heardFrom=first;
+     if(this.onUpdate)this.onUpdate('vis',this);
+     return;
+    }
+   }
+   this.blindFrom=Math.max(this.blindFrom||0,this.n-Math.round(fs*14));
   }
   findVis(){
    const hop=this.ms(1);
@@ -3034,6 +3056,7 @@ var SSTV=(function(){
      /* lost the beat (audio dropped out, or noise)? look across the whole line period for the next sync */
      if(f<0&&this.miss>=1)f=this.findSync(exp-this.msr(lm*0.5),exp+this.msr(lm*0.5),sm);
      if(f>=0){s=f;found=true;this.miss=0}else this.miss=(this.miss||0)+1;
+     if(this.blind&&this.miss>=6){const keep=Math.max(1,this.line-5);this.rgb.fill(0,keep*W*3);this.line=keep;this.state='done';this.partial=true;if(this.onUpdate)this.onUpdate('done',this);return}
     }
     if(found&&!hunted&&this.prevS>=0){const dl=s-this.prevS,rel=dl/this.lenEst;if(rel>0.985&&rel<1.015){this.lenEst=this.lenEst*0.85+dl*0.15}}
     if(found)this.prevS=s;
@@ -6099,7 +6122,7 @@ async function sendConn(fl){
   d.onUpdate=(k,dd)=>{
    if(!ST||ST.dec!==d)return;
    const h=dd.mode.h||E.H;
-   if(k==='vis'){ST.shown=null;ST.noFollow=false;ST.live=true;say('Receiving '+dd.mode.name+'…','Header heard. The picture draws line by line.');const cv=$$('sscv');if(cv){cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,W,h)}drawRoll();
+   if(k==='vis'){ST.shown=null;ST.noFollow=false;ST.live=true;say(dd.blind?'Joined partway: '+dd.mode.name:'Receiving '+dd.mode.name+'…',dd.blind?'Missed the start, so the picture begins where it started hearing it.':'Header heard. The picture draws line by line.');const cv=$$('sscv');if(cv){cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,W,h)}drawRoll();
     /* bring the new picture into view with the bottom of the last one still showing above it */
     const w0=$$('sswin'),lv=$$('sslive');if(w0&&lv)w0.scrollTop=ROLL&&ROLL.length?Math.max(0,lv.offsetTop-44):0;syncBtns();return}
    ST.shown={rgb:dd.rgb.slice(0,W*h*3),h,mode:dd.mode};paintImg(dd.rgb,h,dd.line);
@@ -6107,10 +6130,10 @@ async function sendConn(fl){
    if(k==='done'){
     say('Done · '+dd.mode.name,ST.fromFile?'Added to the roll. Reading on for more…':'Added to the roll. Listening for the next one.');
     try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}
-    pushRoll(ST.shown,false);
+    pushRoll(ST.shown,!!(dd.blind||dd.partial));
     if((ST.listening&&!ST.fromFile)||(ST.fromFile&&ST.fileRun))ST.dec=newDecoder(ST.rate);
     syncBtns();
-   }else{say('Receiving '+dd.mode.name+'… '+Math.round(dd.line/h*100)+'%',null);syncBtns()}
+   }else{say((dd.blind?'Joined partway: ':'Receiving ')+dd.mode.name+'… '+Math.round(dd.line/h*100)+'%',null);syncBtns()}
   };
   return d;
  }
@@ -6511,6 +6534,98 @@ async function sendConn(fl){
   if(m.dataset.pr==='use'){APPKEYS.forEach(k=>delete S.set[k]);Object.assign(S.set,JSON.parse(JSON.stringify(p.set)));if(S.set.shade==null)S.set.shade='auto';if(S.set.paper==null)S.set.paper='dots';selP=p.id;applySettings()}
   save();closeSheet();toast(m.dataset.pr==='use'?'Look applied and saved as “'+n+'”':'Saved as “'+n+'”');got=null;
  },true);
+})();
+
+/* Print: this page, a page and its sub-pages, or pages you pick. Choose how many notes share a sheet. Prints, or saves as PDF. */
+(function(){
+ const PT={id:null,scope:'page',layout:'single',size:'m',pick:new Set(),titles:true,dates:false};
+ const LAYOUTS=[['single','One per page'],['flow','Continuous'],['cols2','2 columns'],['cols3','3 columns'],['cards2','Cards, 2 across'],['cards3','Cards, 3 across']];
+ const SIZES=[['s','Small'],['m','Medium'],['l','Large']];
+ const pages=id=>{const n=S.nodes[id];if(!n)return [];const out=[];if(n.kind==='page')out.push(id);descendants(id).forEach(d=>{if(S.nodes[d]&&S.nodes[d].kind==='page')out.push(d)});return out};
+ function idsFor(){
+  if(PT.scope==='page'){const n=S.nodes[PT.id];return n&&n.kind==='page'?[PT.id]:pages(PT.id)}
+  if(PT.scope==='tree')return pages(PT.id);
+  return flatList('root',0,null,[]).map(x=>x[0]).filter(id=>PT.pick.has(id)&&S.nodes[id]&&S.nodes[id].kind==='page');
+ }
+ const inl=t=>{t=String(t==null?'':t);let h=null;try{h=richHTML(t)}catch(e){}return h==null?escH(t):h};
+ function blockHTML(bl){
+  const NL=(()=>{try{return numLabels(bl)}catch(e){return []}})();let out='';
+  for(let i=0;i<bl.length;i++){
+   const b=bl[i],pad=Math.max(0,(b.ind||0))*16,st=pad?` style="margin-left:${pad}px"`:'';
+   switch(b.type){
+    case 'h1':out+=`<h2 class="h1"${st}>${inl(b.text)}</h2>`;break;
+    case 'h2':out+=`<h3 class="h2"${st}>${inl(b.text)}</h3>`;break;
+    case 'h3':out+=`<h4 class="h3"${st}>${inl(b.text)}</h4>`;break;
+    case 'bullet':out+=`<div class="b li"${st}><span class="m">•</span><span>${inl(b.text)}</span></div>`;break;
+    case 'num':out+=`<div class="b li"${st}><span class="m">${escH(NL[i]||'1.')}</span><span>${inl(b.text)}</span></div>`;break;
+    case 'todo':out+=`<div class="b li"${st}><span class="m">${b.done?'☑':'☐'}</span><span${b.done?' class="dn"':''}>${inl(b.text)}</span></div>`;break;
+    case 'quote':out+=`<blockquote${st}>${inl(b.text)}</blockquote>`;break;
+    case 'code':out+=`<pre${st}>${escH(b.text||'')}</pre>`;break;
+    case 'divider':out+='<hr>';break;
+    case 'toggle':out+=`<div class="b" style="font-weight:600;margin-left:${pad}px">▸ ${inl(b.text)}</div>`;break;
+    case 'page':out+=`<div class="b"${st}>↳ ${escH(S.nodes[b.ref]?nm(S.nodes[b.ref]):'page')}</div>`;break;
+    case 'file':out+=`<div class="b"${st}>📎 ${escH(b.name||'file')}</div>`;break;
+    case 'image':{const u=b.img&&typeof IMG!=='undefined'?IMG[b.img]:null;if(u)out+=`<figure${st}><img src="${u}" alt=""><figcaption>${escH(b.cap||'')}</figcaption></figure>`;break}
+    case 'table':{const rows=b.rows||[];if(rows.length)out+=`<table${st}>`+rows.map((r,ri)=>'<tr>'+r.map((_,c)=>{let v='';try{v=cellShow(rows,ri,c)}catch(e){v=r[c]}return (ri?'<td>':'<th>')+escH(v)+(ri?'</td>':'</th>')}).join('')+'</tr>').join('')+'</table>';break}
+    case 'db':{const db=b.db;if(db&&db.cols&&db.rows){out+=`<table${st}><tr>`+db.cols.map(c=>`<th>${escH(c.name||'')}</th>`).join('')+'</tr>'+db.rows.map(r=>'<tr>'+db.cols.map(c=>{let v='';try{v=c.type==='check'?(cellGet(db,r,c)?'☑':'☐'):c.type==='link'?idsOf(cellGet(db,r,c)).filter(id=>S.nodes[id]).map(id=>nm(S.nodes[id])).join(', '):cellText(db,r,c)}catch(e){}return `<td>${escH(v)}</td>`}).join('')+'</tr>').join('')+'</table>'}break}
+    default:out+=`<p class="b"${st}>${inl(b.text)||'&nbsp;'}</p>`;
+   }
+  }
+  return out;
+ }
+ function buildDoc(ids){
+  const fs={s:10,m:12,l:14}[PT.size]||12,L=PT.layout,n=L.endsWith('2')?2:L.endsWith('3')?3:1;
+  const notes=ids.map(id=>{const nd=S.nodes[id],d=new Date(nd.t||Date.now());
+   return `<section class="note"><h1 class="t">${escH(nm(nd))}</h1>${PT.dates?`<div class="meta">${escH(d.toLocaleDateString())}</div>`:''}${blockHTML(nd.blocks||[])}</section>`}).join('');
+  const wrapCls=L.startsWith('cols')?'cols':L.startsWith('cards')?'cards':L==='single'?'single':'flow';
+  const css=`@page{margin:14mm}*{box-sizing:border-box}body{margin:0;font:${fs}pt/1.5 Georgia,'Times New Roman',serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1.t{font:700 ${(fs*1.5).toFixed(1)}pt/1.2 system-ui,sans-serif;margin:0 0 6pt}.meta{font:${(fs*.75).toFixed(1)}pt system-ui;color:#666;margin:-3pt 0 6pt}
+h2.h1{font:700 ${(fs*1.3).toFixed(1)}pt system-ui,sans-serif;margin:10pt 0 4pt}h3.h2{font:700 ${(fs*1.15).toFixed(1)}pt system-ui,sans-serif;margin:8pt 0 3pt}h4.h3{font:700 ${fs}pt system-ui,sans-serif;margin:6pt 0 2pt}
+.b{margin:0 0 3pt;white-space:pre-wrap}.li{display:flex;gap:6pt}.li .m{flex:none;min-width:1.1em}.dn{text-decoration:line-through;color:#777}
+blockquote{margin:4pt 0;padding:2pt 0 2pt 8pt;border-left:3pt solid #999;color:#333}pre{background:#f2f2f2;padding:6pt;border-radius:4pt;font:${(fs*.85).toFixed(1)}pt ui-monospace,monospace;white-space:pre-wrap;margin:4pt 0}
+hr{border:0;border-top:1px solid #aaa;margin:8pt 0}table{border-collapse:collapse;margin:4pt 0;max-width:100%}td,th{border:1px solid #999;padding:2pt 5pt;font:${(fs*.9).toFixed(1)}pt system-ui;text-align:left}th{background:#eee}
+figure{margin:6pt 0}img{max-width:100%;height:auto}figcaption{font:${(fs*.8).toFixed(1)}pt system-ui;color:#666}
+.note{margin:0 0 16pt}.single .note{break-after:page;margin:0}.single .note:last-child{break-after:auto}
+.cols{column-count:${n};column-gap:20pt;column-rule:1px solid #ddd}.cols .note{margin-bottom:14pt}.cols h1.t,.cols h2,.cols h3,.cols h4{break-after:avoid}
+.cards{display:grid;grid-template-columns:repeat(${n},minmax(0,1fr));gap:10pt;align-items:start}.cards .note{border:1px solid #aaa;border-radius:8pt;padding:8pt 10pt;margin:0;break-inside:avoid}${PT.titles?'':'.t{display:none}'}`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Margin Notes</title><style>${css}</style></head><body><div class="${wrapCls}">${notes||'<p>Nothing to print.</p>'}</div></body></html>`;
+ }
+ function doPrint(){
+  const ids=idsFor();if(!ids.length)return toast('Pick at least one page');
+  const html=buildDoc(ids);closeSheet();
+  if(window.NativeBridge&&NativeBridge.printHtml){NativeBridge.printHtml('Margin Notes',html);return}
+  const fr=document.createElement('iframe');fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0';fr.srcdoc=html;
+  fr.onload=()=>{setTimeout(()=>{try{fr.contentWindow.focus();fr.contentWindow.print()}catch(e){toast('Printing is not available here')}setTimeout(()=>fr.remove(),60000)},250)};
+  document.body.appendChild(fr);
+ }
+ window.__print={html:()=>buildDoc(idsFor()),state:PT};
+ const seg=(key,list)=>`<div class="ss_chips" style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px">${list.map(([v,l])=>`<button class="pchip ${PT[key]===v?'on':''}" data-po="${key}" data-v="${v}" style="padding:8px 12px">${l}</button>`).join('')}</div>`;
+ function sheet(){
+  const n=S.nodes[PT.id],isPage=n&&n.kind==='page',cnt=idsFor().length;
+  const scopes=isPage?[['page','This page'],['tree','This page and sub-pages'],['pick','Pick pages']]:[['tree','Everything in here'],['pick','Pick pages']];
+  if(!scopes.some(x=>x[0]===PT.scope))PT.scope=scopes[0][0];
+  let pick='';
+  if(PT.scope==='pick'){pick='<div class="optlist" style="max-height:34vh;overflow:auto;margin-bottom:8px">'+flatList('root',0,null,[]).filter(([id])=>S.nodes[id]&&S.nodes[id].kind==='page').map(([id,d])=>`<label class="opt" style="display:flex;gap:10px;align-items:center;padding-left:${12+d*14}px"><input type="checkbox" data-pt="pk" data-id="${id}" ${PT.pick.has(id)?'checked':''}><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nm(S.nodes[id]))}</span></label>`).join('')+'</div>'}
+  openSheet(`<h3>Print</h3><label class="vlab">What to print</label>${seg('scope',scopes)}${pick}
+  <label class="vlab">How notes sit on the paper</label>${seg('layout',LAYOUTS)}
+  <label class="vlab">Text size</label>${seg('size',SIZES)}
+  <label class="opt" style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-pt="titles" ${PT.titles?'checked':''}><span>Show page titles</span></label>
+  <label class="opt" style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-pt="dates" ${PT.dates?'checked':''}><span>Show last edited date</span></label>
+  <p class="hint">${cnt} page${cnt===1?'':'s'}. The next screen lets you print, or save as a PDF.</p>
+  <div class="btnrow"><button class="btn" data-qr="close">Cancel</button><button class="btn pri" data-pt="go">Print…</button></div>`);
+ }
+ document.addEventListener('click',e=>{
+  const o=e.target.closest('[data-po]');
+  if(o){e.stopPropagation();PT[o.dataset.po]=o.dataset.v;const k=$('#sheet').scrollTop;sheet();$('#sheet').scrollTop=k;return}
+  const t=e.target.closest('[data-pt]');if(!t)return;const k=t.dataset.pt;
+  if(k==='open'){e.stopPropagation();e.preventDefault();PT.id=t.dataset.id||S.cur;PT.scope=(S.nodes[PT.id]&&S.nodes[PT.id].kind==='page')?'page':'tree';PT.pick=new Set([PT.id]);sheet();return}
+  if(k==='go'){e.stopPropagation();doPrint();return}
+ },true);
+ document.addEventListener('change',e=>{
+  const t=e.target.closest&&e.target.closest('[data-pt]');if(!t)return;const k=t.dataset.pt;
+  if(k==='pk'){if(t.checked)PT.pick.add(t.dataset.id);else PT.pick.delete(t.dataset.id);const c=document.querySelector('#sheet .hint');if(c){const n=idsFor().length;c.textContent=n+' page'+(n===1?'':'s')+'. The next screen lets you print, or save as a PDF.'}}
+  else if(k==='titles')PT.titles=t.checked;else if(k==='dates')PT.dates=t.checked;
+ });
 })();
 
 /* Connect: a QR (or pasted code) sets up a direct, encrypted device-to-device link; then pages and vaults go over it */
@@ -7480,20 +7595,25 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
   setTab(me,me.mode);
  }
  function setTab(me,m){
+  const pre=(m==='p'&&me.preKeep)?me.pre:null;me.preKeep=false;
   me.mode=m;me.heard=false;me.t0=Date.now();me.tid=-1;me.parts=null;me.got=0;me.dec=null;
   document.querySelectorAll('#slt button').forEach(b=>b.classList.toggle('on',b.dataset.v===m));
   const body=$('#slbody'),keep=$('#slkeep'),note=$('#slnote');if(keep)keep.hidden=true;
   if(m==='d'){
    body.innerHTML='<div class="big" id="sltx">Listening for a transfer…</div><div class="bar"><i id="slbar"></i></div><div class="grid" id="slgrid"></div>';
    if(note)note.textContent='The other device: Send by sound. Hold the phones close, speaker toward the microphone.';
-   ggLoad(me.mic.rate).then(g=>{me.gg=g}).catch(()=>{const t=$('#sltx');if(t)t.textContent='Sound engine could not start'});
+   if(!me.gg)ggLoad(me.mic.rate).then(g=>{me.gg=g}).catch(()=>{const t=$('#sltx');if(t)t.textContent='Sound engine could not start'});
+   /* a picture can start while you are on Data: watch for its header too, and jump to Picture when it is heard */
+   const pd=me.pre=new SSTV.Decoder(me.mic.rate);
+   pd.onUpdate=k=>{if(k==='vis'&&L===me&&me.mode==='d'&&me.pre===pd){me.preKeep=true;setTab(me,'p');const t=$('#sltx');if(t)t.textContent='A picture is coming in…'}};
   }else{
    body.innerHTML='<canvas id="slcv" width="320" height="256"></canvas><div class="big" id="sltx">Waiting for a picture…</div>';
    if(note)note.textContent='The other device: Send picture by sound. Stay quiet while it plays.';
    const cx=$('#slcv').getContext('2d');cx.fillStyle='#111';cx.fillRect(0,0,320,256);
-   const d=me.dec=new SSTV.Decoder(me.mic.rate);
+   const d=me.dec=pre||new SSTV.Decoder(me.mic.rate);if(!pre)me.pre=null;
+   if(!me.gg)ggLoad(me.mic.rate).then(g=>{me.gg=g}).catch(()=>{});
    d.onUpdate=(k,dd)=>{if(L!==me||me.dec!==d)return;const t=$('#sltx');
-    if(k==='vis'){if(t)t.textContent='Receiving '+dd.mode.name+'…'}
+    if(k==='vis'){if(t)t.textContent=dd.blind?'Joined partway: '+dd.mode.name+'…':'Receiving '+dd.mode.name+'…'}
     else{const im=cx.createImageData(320,256),o=im.data,r=dd.rgb;for(let i=0,j=0;i<o.length;i+=4,j+=3){o[i]=r[j];o[i+1]=r[j+1];o[i+2]=r[j+2];o[i+3]=255}cx.putImageData(im,0,0);
      if(t)t.textContent=k==='done'?'Done':'Receiving… '+Math.round(dd.line/256*100)+'%';
      const kb2=$('#slkeep');if(kb2&&dd.line>16)kb2.hidden=false;
@@ -7502,7 +7622,13 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
  }
  function onAudio(me,x){
   if(L!==me||me.dead)return;let p=0;for(let i=0;i<x.length;i+=8){const a=Math.abs(x[i]);if(a>p)p=a}if(p>me.peak)me.peak=p;if(p>0.01)me.heard=true;
-  if(me.mode==='p'){if(me.dec)me.dec.push(x);return}
+  if(me.mode==='p'){
+   if(me.dec)me.dec.push(x);
+   /* data heard while waiting for a picture: switch over (a picture in progress is left alone) */
+   if(me.gg&&me.dec&&me.dec.state==='wait'){let r;try{r=me.gg.g.decode(me.gg.rx,new Int8Array(x.buffer.slice(0)))}catch(e){}
+    if(r&&r.length){setTab(me,'d');onPacket(me,new TextDecoder().decode(r))}}
+   return}
+  if(me.pre)me.pre.push(x);
   if(!me.gg)return;
   let r;try{r=me.gg.g.decode(me.gg.rx,new Int8Array(x.buffer))}catch(e){return}
   if(r&&r.length)onPacket(me,new TextDecoder().decode(r));
