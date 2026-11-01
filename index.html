@@ -205,6 +205,7 @@ body.editing .fab,body.selmode .fab,body.dragging .fab{display:none}
 .selbar .cnt{padding:0 10px;font-size:13px;color:var(--muted);white-space:nowrap}
 .acc{bottom:0;border-radius:20px;width:calc(100% - 16px);max-width:calc(100% - 16px);justify-content:space-around;margin-bottom:8px}
 @media (hover:hover) and (pointer:fine){.acc{display:none!important}}
+html.nbar .acc:not([hidden]){display:flex!important}
 .ib.bad{color:var(--danger)}
 .pop{position:fixed;z-index:50;width:min(300px,calc(100vw - 20px));max-height:min(340px,45vh);overflow:auto;background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:6px}
 .pi{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:8px 10px;border-radius:12px}
@@ -305,7 +306,7 @@ details.psec>summary::after{content:"+";color:var(--muted)}details.psec[open]>su
 .findbar input{flex:1;min-width:0;border:0;background:transparent;font:inherit;color:var(--ink);outline:none;font-size:16px}.findbar #fc{color:var(--muted);font-size:13px;padding:0 6px;white-space:nowrap}
 ::highlight(find){background:color-mix(in srgb,var(--accent) 28%,transparent)}::highlight(findcur){background:var(--accent);color:var(--on-accent)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 14px}.stats div{background:var(--accent-soft);border-radius:16px;padding:12px;text-align:center}.stats b{display:block;font-size:20px}.stats small{color:var(--muted)}
-.pinbox{padding:2px 0 8px;margin-bottom:6px;border-bottom:1px solid var(--line)}.pinh{display:flex;gap:6px;align-items:center;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 10px}
+.sheet.guard,.sheet.guard *{pointer-events:none!important}.recbox .pinr{padding:7px 10px}.pinbox{padding:2px 0 8px;margin-bottom:6px;border-bottom:1px solid var(--line)}.pinh{display:flex;gap:6px;align-items:center;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 10px}
 .pinr{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:12px;text-align:left}.pinr:hover,.pinr.on{background:var(--accent-soft)}.pinr span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .row[data-type=db] .mark{display:none}.row[data-type=db] .inner{padding-left:2px}.row[data-type=db] .txt{white-space:normal;overflow:visible}
@@ -460,7 +461,11 @@ body.cvopen .fab{display:none}
 .crumb[data-cid]{position:relative}
 .rband{position:fixed;z-index:70;border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:6px;pointer-events:none}
 body.banding,body.banding *{user-select:none!important;cursor:crosshair}
-body.xsel .txt{caret-color:transparent}
+body.xsel .txt{caret-color:transparent}body.xtouch .fab{display:none}
+.accx{flex:none;height:40px;padding:0 12px;margin-right:4px;border-radius:14px;background:var(--accent-soft);color:var(--ink);font-weight:600;font-size:13px;white-space:nowrap}
+.xbar{position:fixed;z-index:62;left:50%;transform:translateX(-50%);bottom:calc(18px + var(--sab,env(safe-area-inset-bottom,0px)));display:flex;gap:4px;padding:6px;border-radius:20px;background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow)}.xbar button{height:40px;padding:0 14px;border-radius:14px;font-weight:600;font-size:14px}.xbar button.pri{background:var(--accent);color:var(--on-accent)}
+.xh{position:fixed;z-index:61;width:26px;height:26px;margin-top:7px;border-radius:50%;background:var(--accent);border:2px solid var(--paper);box-shadow:0 2px 8px rgba(0,0,0,.35);touch-action:none}.xh::before{content:'';position:absolute;left:10px;top:-9px;width:2px;height:9px;background:var(--accent)}.xh::after{content:'';position:absolute;inset:-14px}
+body.xtouch .txt{-webkit-user-select:text;user-select:text}
 .lad{position:fixed;left:50%;transform:translateX(-50%);z-index:30;width:min(86vw,360px);max-height:62vh;overflow:hidden;background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:8px}
 .lad h4{margin:2px 8px 6px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .lad .li{display:flex;align-items:center;gap:10px;height:44px;padding:0 10px;border-radius:12px;white-space:nowrap}
@@ -690,7 +695,7 @@ function treeHTML(id,d){return S.nodes[id].kids.map(k=>{const c=S.nodes[k];const
 function renderSide(){
  $('#side').innerHTML=`<div class="sh"><span class="brand">Margin Notes</span><button class="ib" id="sClose" aria-label="Close menu">${ic('x')}</button></div>
  <div class="sb"><button class="pill ${S.cur==='root'?'on':''}" data-go="root">${ic('home',18)}Home</button><button class="pill" id="sSearch">${ic('search',18)}Search</button><button class="pill" id="sToday">${ic('cal',18)}Today</button></div><div class="sb"><button class="pill" id="sAll">${ic('all',18)}All notes</button><button class="pill" id="sCanvas">${ic('table',18)}Canvas</button><button class="pill" id="sScan">${ic('scan',18)}Scan</button></div>
- <div class="tree" id="tree">${pinsHTML()}${treeHTML('root',0)||'<div class="empty">No notes yet</div>'}</div>
+ <div class="tree" id="tree">${recentHTML()}${pinsHTML()}${treeHTML('root',0)||'<div class="empty">No notes yet</div>'}</div>
  <div class="sf"><div class="saverow"><button class="pill save" id="sSave">${ic('save',18)}Save vault<span class="badge" id="sBadge" hidden></span></button><button class="ib optb" id="sSaveOpt" aria-label="Save options">${ic('sliders',18)}</button></div><div class="sfnote" id="sNote"></div><button class="pill" id="sFolder">${ic('folder',18)}New folder</button><button class="pill" id="sPaper">${ic('pal',18)}Paper</button><button class="pill" id="sBackup">${ic('undo',18)}Backups</button><button class="pill" id="sTrash">${ic('trash',18)}Trash${(S.trash||[]).length?`<span class="badge2">${S.trash.length}</span>`:''}</button></div>`;
  updBadge();
 }
@@ -701,7 +706,7 @@ function renderTop(){
  const c=$('#crumbs');c.scrollLeft=c.scrollWidth;updUndo();
 }
 function refreshChrome(){renderTop();renderSide()}
-function go(id,opt){opt=opt||{};closeFind();if(typeof closeAll==='function')closeAll();if(!S.nodes[id])id='root';if(!opt.noflush)flushTitle();{const a=document.activeElement;if(a&&a.blur&&a!==document.body)a.blur()}clearSel(true);closeSlash();S.cur=id;
+function go(id,opt){opt=opt||{};closeFind();if(typeof closeAll==='function')closeAll();if(!S.nodes[id])id='root';if(!opt.noflush)flushTitle();{const a=document.activeElement;if(a&&a.blur&&a!==document.body)a.blur()}clearSel(true);closeSlash();S.cur=id;trackRecent(id);
  path(id).forEach(p=>S.nodes[p].open=true);
  render();if(innerWidth<900)closeSide();save();
  if(opt.block){const r=document.querySelector(`.row[data-id="${opt.block}"]`);if(r){r.scrollIntoView({block:'center'});r.classList.add('flash')}}
@@ -715,6 +720,7 @@ function closeSide(){$('#side').classList.remove('open');$('#scrim').hidden=true
 /* ---------- page ---------- */
 function listHTML(ids){return ids.map(k=>{const c=S.nodes[k];let pv='';if(c.kind==='folder')pv=c.kids.length+(c.kids.length===1?' item':' items');else{const f=c.blocks.find(b=>b.text&&b.text.trim());pv=f?f.text:'Empty'}
  return `<button class="card" data-go="${k}">${kic(c,22)}<span class="ct"><b>${esc(nm(c))}</b><small>${esc(pv.slice(0,90))}</small></span><small class="when">${ago(c.t)}</small></button>`}).join('')}
+function homeIds(){return Object.values(S.nodes).filter(x=>x&&x.home&&x.id!=='root').sort((a,b)=>(a.homeAt||0)-(b.homeAt||0)).map(x=>x.id)}
 function renderPage(){
  const n=cur(),page=$('#page');page.classList.toggle('fulldb',n.kind==='page'&&!!n.full);
  if(n.kind==='page'){
@@ -728,6 +734,7 @@ function renderPage(){
   if(n.kids.length)h+=`<div class="cards">${listHTML(n.kids)}</div><button class="addrow" data-fa="menu">${ic('plus',16)}Add…</button>`;
   else h+=`<div class="empty">Nothing here yet.<div class="btnrow"><button class="btn pri" data-a="newnote">New note</button><button class="btn" data-a="newfolder">New folder</button></div></div>`;
   if(isRoot){const rec=Object.values(S.nodes).filter(x=>x.kind==='page').sort((a,b)=>b.t-a.t).slice(0,5).map(x=>x.id);if(rec.length)h+=`<div class="sec">Recent</div><div class="cards">${listHTML(rec)}</div>`}
+  if(isRoot){const hp=homeIds();if(hp.length){const at=h.indexOf('<p class="sub">');const end=h.indexOf('</p>',at)+4;h=h.slice(0,end)+`<div class="sec">Pinned to Home</div><div class="cards">${listHTML(hp)}</div>`+(n.kids.length?'<div class="sec">At the top level</div>':'')+h.slice(end)}}
   page.innerHTML=h;const t=$('#title');t.textContent=nm(n);if(!isRoot)t.contentEditable=PT;
  }
 }
@@ -990,12 +997,16 @@ page.addEventListener('pointerdown',e=>{if(e.target.closest('.mark button'))e.pr
 $('#slash').addEventListener('pointerdown',e=>e.preventDefault());
 $('#slash').addEventListener('click',e=>{const b=e.target.closest('.pi');if(b)pickSlash(+b.dataset.k)});
 function setEditing(on){document.body.classList.toggle('editing',on);$('#acc').hidden=!on;if(on)trackAcc(900)}
-function placeAcc(){const a=$('#acc'),vv=window.visualViewport;if(!a||a.hidden)return;
- /* pin the bar to the bottom edge of what is actually visible (above the keyboard), measured from the top so iOS's shifting layout viewport can't hide it */
- if(!vv){a.style.bottom='0px';return}
- a.style.bottom='auto';a.style.top=Math.max(0,vv.offsetTop+vv.height-a.offsetHeight-8)+'px'}
+/* the bottom edge of what you can actually see: above the keyboard. The Android app does not resize the web view for the keyboard, it reports the keyboard height as --sab instead. */
+function viewBottom(){const r=document.documentElement;
+ if(r.classList.contains('nbar')){const sab=parseFloat(getComputedStyle(r).getPropertyValue('--sab'))||0;return innerHeight-sab}
+ const vv=window.visualViewport;return vv?vv.offsetTop+vv.height:innerHeight}
+function placeAcc(){const a=$('#acc');if(!a||a.hidden)return;
+ /* pin the bar to the bottom edge of what is visible, measured from the top so iOS's shifting layout viewport can't hide it */
+ a.style.bottom='auto';a.style.top=Math.max(0,viewBottom()-a.offsetHeight-8)+'px'}
 let accRaf=0;function trackAcc(ms){const t0=Date.now();cancelAnimationFrame(accRaf);const f=()=>{placeAcc();if(Date.now()-t0<(ms||700))accRaf=requestAnimationFrame(f)};f()}
 if(window.visualViewport){visualViewport.addEventListener('resize',()=>trackAcc(500));visualViewport.addEventListener('scroll',placeAcc)}
+try{new MutationObserver(()=>trackAcc(400)).observe(document.documentElement,{attributes:true,attributeFilter:['style','class']})}catch(e){}
 window.addEventListener('resize',()=>trackAcc(500));document.addEventListener('focusin',()=>{if(document.body.classList.contains('editing'))trackAcc(900)});
 $('#acc').innerHTML=['undo','redo','outdent','indent','toparent','exitsec','up','down','slash','kb'].map(a=>`<button class="ib" data-acc="${a}" aria-label="${a}">${ic(a)}</button>`).join('');
 $('#acc').addEventListener('pointerdown',e=>e.preventDefault());
@@ -1172,7 +1183,7 @@ function nodeMenu(id){
  if(id==='root')return openSheet(`<h3>Home</h3><button class="opt" data-m="paper">${ic('pal')}Paper &amp; colors</button>${window.NativeBridge&&NativeBridge.openHtml?`<button class="opt" data-m="openhtml">${ic('page')}Open an HTML file</button>`:''}<button class="opt" data-m="all">${ic('all')}All notes</button><button class="opt" data-pt="open" data-id="root">${ic('page')}Print…</button><button class="opt" data-m="canvas">${ic('table')}Canvas</button><button class="opt" data-m="qrscan">${ic('scan')}Scan QR code</button><button class="opt" data-snd="listen">${ic('recv')}Listen for sound</button><button class="opt" data-xf="pick">${ic('send')}Send a file</button><button class="opt" data-m="devices">${ic('sliders')}Devices and trust</button><button class="opt" data-m="note" data-id="root">${ic('page')}New page</button><button class="opt" data-m="dbpage" data-id="root">${ic('table')}New database page</button><button class="opt" data-m="folder" data-id="root">${ic('folder')}New folder</button>`);
  openSheet(`<h3>${esc(nm(n))}</h3><button class="opt" data-m="paper">${ic('pal')}Paper &amp; colors</button>
  ${n.kind==='page'&&id===S.cur?`<button class="opt" data-m="find">${ic('search')}Find on this page</button><button class="opt" data-m="stats">${ic('all')}Word count</button>`:''}
- <button class="opt" data-pt="open" data-id="${id}">${ic('page')}Print…</button><button class="opt" data-m="pin" data-id="${id}">${ic('star')}${(S.pins||[]).includes(id)?'Unpin from sidebar':'Pin to sidebar'}</button>
+ <button class="opt" data-pt="open" data-id="${id}">${ic('page')}Print…</button><button class="opt" data-m="home" data-id="${id}">${ic('home')}${n.home?'Remove from Home':'Show on Home'}</button><button class="opt" data-m="pin" data-id="${id}">${ic('star')}${(S.pins||[]).includes(id)?'Unpin from sidebar':'Pin to sidebar'}</button>
  ${n.kind==='page'?`<button class="opt" data-m="cvadd" data-id="${id}">${ic('table')}Add to canvas</button><button class="opt" data-m="share" data-id="${id}">${ic('send')}Share…</button>`:''}
  <button class="opt" data-m="note" data-id="${id}">${ic('page')}New page inside</button>
  <button class="opt" data-m="dbpage" data-id="${id}">${ic('table')}New database page inside</button>
@@ -1900,8 +1911,8 @@ page.addEventListener('keydown',e=>{
  if(kind){e.preventDefault();e.stopPropagation();applyFmt(kind)}
 },true);
 Object.assign(IC,{bold:'<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/>',italic:'<path d="M14 5h-4M14 19h-4M13 5l-2 14"/>',codei:'<path d="m8 8-4 4 4 4M16 8l4 4-4 4"/>',link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'});
-$('#acc').innerHTML='<div class="accs">'+['undo','redo','outdent','indent','toparent','exitsec','up','down','slash','bold','italic','codei','link'].map(a=>`<button class="ib" data-acc="${a}" aria-label="${a}">${ic(a)}</button>`).join('')+'</div><button class="accdone" data-acc="kb" aria-label="Done editing">Done</button>';
-$('#acc').addEventListener('click',e=>{const a=e.target.closest('[data-acc]');if(!a)return;const m={bold:'b',italic:'i',codei:'code',link:'link'}[a.dataset.acc];if(m)applyFmt(m)});
+$('#acc').innerHTML='<div class="accs"><button class="accx" data-acc="xmore" hidden aria-label="Select more text">Select more</button>'+['undo','redo','outdent','indent','toparent','exitsec','up','down','slash','bold','italic','codei','link'].map(a=>`<button class="ib" data-acc="${a}" aria-label="${a}">${ic(a)}</button>`).join('')+'</div><button class="accdone" data-acc="kb" aria-label="Done editing">Done</button>';
+$('#acc').addEventListener('click',e=>{const a=e.target.closest('[data-acc]');if(!a)return;const m={bold:'b',italic:'i',codei:'code',link:'link'}[a.dataset.acc];if(m)applyFmt(m);if(a.dataset.acc==='xmore'&&window.__xsel)window.__xsel.touchStart()});
 /* paste a URL over selected text -> link */
 page.addEventListener('paste',e=>{
  const t=e.target;if(!isTxt(t))return;const tx=(e.clipboardData&&e.clipboardData.getData('text/plain')||'').trim();
@@ -2129,6 +2140,14 @@ function openStats(){
  openSheet(`<h3>Word count</h3><div class="stats"><div><b>${words.toLocaleString()}</b><small>words</small></div><div><b>${chars.toLocaleString()}</b><small>characters</small></div><div><b>${nos.toLocaleString()}</b><small>without spaces</small></div><div><b>${B.filter(b=>!['divider'].includes(b.type)).length}</b><small>lines</small></div><div><b>${sent}</b><small>sentences</small></div><div><b>${Math.max(1,Math.ceil(words/230))} min</b><small>reading time</small></div></div><div class="btnrow"><button class="btn" data-m="x">Close</button></div>`);
 }
 /* ---------- pinned favorites + daily note ---------- */
+function trackRecent(id){if(id==='root'||!S.nodes[id])return;const a=(S.rec||[]).filter(x=>x!==id&&S.nodes[x]);a.unshift(id);S.rec=a.slice(0,30)}
+function recentHTML(){
+ if(!IC.clock)IC.clock='<circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/>';
+ let ids=(S.rec||[]).filter(id=>S.nodes[id]&&id!==S.cur);
+ if(ids.length<5){const more=Object.values(S.nodes).filter(x=>x.kind==='page'&&x.id!==S.cur&&!ids.includes(x.id)).sort((a,b)=>b.t-a.t).map(x=>x.id);ids=ids.concat(more)}
+ ids=ids.slice(0,6);if(!ids.length)return'';
+ return `<div class="pinbox recbox"><div class="pinh">${ic('clock',14)}Recent</div>${ids.map(id=>`<button class="pinr" data-go="${id}">${kic(S.nodes[id],17)}<span>${esc(nm(S.nodes[id]))}</span></button>`).join('')}</div>`;
+}
 function pinsHTML(){
  const p=(S.pins||[]).filter(id=>S.nodes[id]);if(!p.length)return'';
  return `<div class="pinbox"><div class="pinh">${ic('star',14)}Pinned</div>${p.map(id=>`<button class="pinr ${id===S.cur?'on':''}" data-go="${id}">${kic(S.nodes[id],17)}<span>${esc(nm(S.nodes[id]))}</span></button>`).join('')}</div>`;
@@ -2148,6 +2167,7 @@ $('#sheet').addEventListener('click',e=>{
  if(k==='find'){closeSheet();setTimeout(openFind,60)}
  else if(k==='stats')openStats();
  else if(k==='pin'){closeSheet();togglePin(m.dataset.id)}
+ else if(k==='home'){closeSheet();const hn=S.nodes[m.dataset.id];if(hn){hn.home=!hn.home;if(hn.home)hn.homeAt=Date.now();else delete hn.homeAt;if(!hn.home)delete hn.home;markDirty(hn.id);save();if(S.cur==='root')renderPage();toast(hn.home?'Now shown on Home':'Removed from Home')}}
 });
 /* ---------- databases (inline block) ---------- */
 const DBT={text:'Aa',num:'#',check:'✓',select:'▾',multi:'☷',date:'▤',link:'↗',formula:'ƒ',image:'▣'};
@@ -2945,24 +2965,26 @@ var SSTV=(function(){
   mr(v){return this.msr(v)*(this.sc||1)}
   step(){
    if(this.state==='wait'){this.findVis();if(this.state==='wait'&&this.blindOn!==false)this.blindScan()}
-   if(this.state==='image')this.decodeLines();
+   if(this.state==='image'){this.decodeLines();if(this.state==='image')this.watchHeader()}
   }
   /* no header heard (we joined late): look for the steady beat of sync pulses and work out the mode from its period */
   blindScan(){
    const fs=this.fs;if(this.n-(this.lastBlind||0)<fs*0.8)return;this.lastBlind=this.n;
    const MS=[[8,9],[40,SYNC],[44,SYNC]];
    for(const [vis,sy] of MS){
-    const m=MODES[vis],lm=this.msr(lineMs(m)),tol=this.msr(7);
-    const lo=Math.max(this.blindFrom||0,this.n-Math.round(lm*12)),hi=this.n-Math.round(lm*7.5);
+    const m=MODES[vis],lm=this.msr(lineMs(m)),tol=this.msr(4);
+    const lo=Math.max(this.blindFrom||0,this.n-Math.round(lm*17)),hi=this.n-Math.round(lm*12.5);
     for(let a=lo;a<=hi;a+=lm*0.5){
      const p0=this.findSync(a,a+lm*0.5,sy);if(p0<0)continue;
      let cnt=1,exp=p0+lm,last=p0;
-     for(let k=0;k<6;k++){const f=this.findSync(exp-tol,exp+tol,sy);if(f<0)break;cnt++;last=f;exp=f+lm}
-     if(cnt<6)continue;
+     for(let k=0;k<11;k++){const f=this.findSync(exp-tol,exp+tol,sy);if(f<0)break;cnt++;last=f;exp=f+lm}
+     if(cnt<12)continue;
+     /* real picture lines sit between 1500 and 2300 Hz almost everywhere; noise does not. Check the middle of each line. */
+     {let ok=0,tot=0;for(let k=1;k<=10;k++){const q=p0+k*lm;for(let j=0;j<4;j++){const f=this.fq(q+lm*(0.2+0.15*j),q+lm*(0.2+0.15*j)+this.msr(4));tot++;if(!isNaN(f)&&f>1400&&f<2450)ok++}}if(ok<tot*0.85)continue}
      /* walk back to the first pulse of this run: that is the first line we actually heard */
      let first=p0,back=0;
      for(;back<400;back++){const e=first-lm,f=e-tol<0?-1:this.findSync(e-tol,e+tol,sy);if(f<0)break;first=f}
-     this.mode=m;this.state='image';this.t0=first;this.expect=first-this.msr(3);this.line=0;this.hunt=true;this.forced=true;this.gapMs=0;this.nPause=first;this.blind=true;this.miss=0;this.heardFrom=first;
+     this.mode=m;this.state='image';this.t0=first;this.expect=first-this.msr(3);this.line=0;this.hunt=true;this.forced=true;this.gapMs=0;this.nPause=first;this.blind=true;this.miss=0;this.heardFrom=first;this.nLines=0;this.hits=0;this.lastHit=null;this.hs=1;
      if(this.onUpdate)this.onUpdate('vis',this);
      return;
     }
@@ -3023,6 +3045,57 @@ var SSTV=(function(){
    }
    return bs>=110?best:-1;
   }
+  /* what share of a line's data sits in the picture band (1400 to 2450 Hz)? picture lines do; noise mostly does not */
+  bandOk(s,lm){let ok=0;for(let j=0;j<4;j++){const q=s+this.msr(lm*(0.25+0.15*j)),f=this.fq(q,q+this.msr(4));if(!isNaN(f)&&f>1400&&f<2450)ok++}return ok/4}
+  /* a new transmission starting while a picture is still being drawn (a looped recording, or the next sender): finish this one there
+     and carry straight on with the new one, instead of drawing the new one's lines into this picture */
+  watchHeader(){
+   const fs=this.fs;if(this.n-(this.lastHdr||0)<fs*0.4)return;this.lastHdr=this.n;
+   const hop=this.ms(1),from=Math.max(this.t0||0,this.n-Math.round(this.ms(1900)));
+   if(this.n-from<this.ms(900))return;
+   const cls=[];for(let a=from;a+hop<=this.n;a+=hop){const f=this.fq(a,a+hop);cls.push(isNaN(f)?0:Math.abs(f-1900)<150?1:Math.abs(f-1200)<170?2:0)}
+   const runs=[];for(let i=0;i<cls.length;i++){const c=cls[i];if(runs.length&&runs[runs.length-1].c===c)runs[runs.length-1].l++;else runs.push({c,l:1,s:i})}
+   for(let i=1;i<runs.length;i++){if(runs[i].c===0&&runs[i].l<=2){runs[i-1].l+=runs[i].l;runs.splice(i,1);i--;if(i>=1&&i<runs.length&&runs[i-1].c===runs[i].c){runs[i-1].l+=runs[i].l;runs.splice(i,1);i--}}}
+   for(let i=1;i+2<runs.length;i++){
+    const a=runs[i-1],b=runs[i],c=runs[i+1],d=runs[i+2];
+    if(a.c===1&&a.l>=200&&b.c===2&&b.l>=6&&b.l<=16&&c.c===1&&c.l>=200&&d.c===2&&d.l>=10){this.endByHeader(from+a.s*hop);return}
+   }
+  }
+  endByHeader(at){
+   const m=this.mode,hh=m.h||H,L=this.lenEst||this.msr(lineMs(m));
+   let keep=Math.floor(this.line-(this.expect-at)/L);keep=Math.max(0,Math.min(this.line,keep));if(m.type==='r')keep&=~1;
+   this.hdrAt=at;
+   if(keep<8){this.rearm();if(this.onUpdate)this.onUpdate('abort',this);return}
+   this.rgb.fill(0,keep*W*3);
+   if(this.blind&&keep<hh){ /* it ended where the transmission ended, so what was heard is the bottom of the picture */
+    this.rgb.copyWithin((hh-keep)*W*3,0,keep*W*3);this.rgb.fill(0,0,(hh-keep)*W*3);this.bottom=true;this.line=hh;
+   }else this.line=keep;
+   this.state='done';this.partial=keep<hh-2;this.endWhy='header';this.handoff=true;
+   if(this.onUpdate)this.onUpdate('done',this);
+  }
+  /* start listening for a new transmission again, keeping the audio from just before its header */
+  rearm(){
+   const at=this.hdrAt==null?this.n:this.hdrAt,sh=Math.max(0,Math.min(this.n,Math.round(at-this.ms(120))));
+   this.wr.copyWithin(0,sh,this.n);this.wi.copyWithin(0,sh,this.n);this.n-=sh;
+   this.state='wait';this.mode=null;this.line=0;this.blind=false;this.partial=false;this.bottom=false;this.endWhy=null;this.handoff=false;this.hdrAt=null;
+   this.hunt=false;this.forced=false;this.miss=0;this.nLines=0;this.hits=0;this.lastHit=null;this.hs=1;this.lenEst=0;this.prevS=-1;this.sc=1;this.pdis=0;
+   this.rgb.fill(0);this.Y.fill(0);this.cr.fill(0);this.cb.fill(0);this.hasCr.fill(0);this.hasCb.fill(0);
+   this.searchFrom=0;this.blindFrom=0;this.lastBlind=0;this.lastHdr=0;this.t0=0;
+  }
+  /* it was noise after all: forget it and go back to listening */
+  abortBlind(){this.state='wait';this.blind=false;this.blindFrom=this.n;this.searchFrom=this.n;this.line=0;this.hunt=false;this.lastHit=null;this.nLines=0;this.hits=0;this.hs=1;this.rgb.fill(0);if(this.onUpdate)this.onUpdate('abort',this)}
+  /* a picture joined partway only counts if most of its lines were really heard */
+  good(){return !this.blind||((this.nLines||0)>=20&&(this.hits||0)/(this.nLines||1)>=0.6)}
+  /* find the line timing again after a dropout: the earliest sync that is followed by a steady run of them */
+  relock(exp,lm,sm){
+   const L=this.lenEst||this.msr(lm),tol=this.msr(3);
+   for(let a=exp-this.msr(lm*0.5);a<exp+this.msr(lm*0.5);a+=this.msr(lm*0.2)){
+    const p0=this.findSync(a,a+this.msr(lm*0.3),sm);if(p0<0)continue;
+    let hit=0;for(let k=1;k<=5;k++){if(this.findSync(p0+k*L-tol,p0+k*L+tol,sm)>=0)hit++}
+    if(hit>=4)return p0;
+   }
+   return -1;
+  }
   /* carry on after a pause: gapMs of the picture went by unheard */
   resume(gapMs){if(this.state!=='image')return;this.gapMs=gapMs;this.nPause=this.n;this.expect=this.n;this.hunt=true}
   /* no header heard: start this mode at the next line */
@@ -3054,17 +3127,26 @@ var SSTV=(function(){
      if(exp+this.msr(lm*1.5+8)>this.n)break;
      let f=this.findSync(exp-this.msr(7),exp+this.msr(7),sm);
      /* lost the beat (audio dropped out, or noise)? look across the whole line period for the next sync */
-     if(f<0&&this.miss>=1)f=this.findSync(exp-this.msr(lm*0.5),exp+this.msr(lm*0.5),sm);
+     /* lost the beat: do not trust one lone pulse (picture content and noise can fake one). Look for a steady run of them. */
+     if(f<0&&this.miss>=2&&hh-this.line>6){
+      if(exp+this.msr(lm*6.5+8)>this.n)break; /* wait until a few more lines have arrived to check against */
+      f=this.relock(exp,lm,sm);if(f>=0)this.prevS=-1;
+     }
      if(f>=0){s=f;found=true;this.miss=0}else this.miss=(this.miss||0)+1;
-     if(this.blind&&this.miss>=6){const keep=Math.max(1,this.line-5);this.rgb.fill(0,keep*W*3);this.line=keep;this.state='done';this.partial=true;if(this.onUpdate)this.onUpdate('done',this);return}
     }
+    this.nLines=(this.nLines||0)+1;if(found){this.hits=(this.hits||0)+1;this.lastHit=this.line}
+    {const q=found&&this.bandOk(s,lm)>=0.75;this.hs=(this.hs==null?1:this.hs)*0.92+(q?0.08:0);if(q)this.lastHit=this.line;
+     /* the signal went away (or it was never a picture): stop, and keep only what really arrived */
+     if(this.nLines>=12&&this.hs<(this.blind?0.2:0.004)){const keep=Math.max(1,(this.lastHit==null?this.line:this.lastHit)+1);this.rgb.fill(0,keep*W*3);this.line=keep;this.state='done';this.partial=true;if(this.onUpdate)this.onUpdate('done',this);return}}
+    if(this.blind&&this.nLines===18&&this.hits<13){this.abortBlind();return}
     if(found&&!hunted&&this.prevS>=0){const dl=s-this.prevS,rel=dl/this.lenEst;if(rel>0.985&&rel<1.015){this.lenEst=this.lenEst*0.85+dl*0.15}}
     if(found)this.prevS=s;
     this.sc=Math.max(0.99,Math.min(1.01,this.lenEst/nom));
     let y=this.line;
     if(m.type==='r'){
      {const sp0=s+this.mr(100),sf0=this.fq(sp0+this.mr(0.8),sp0+this.mr(3.7));
-      if(!isNaN(sf0)){const ry0=sf0<1900;if(ry0!==((y&1)===0)){y=Math.min(hh-1,y+1);this.line=y;if(ry0!==((y&1)===0))y=this.line=y-1}}}
+      /* only move the row when a real sync was heard and the separator is clear, and only after it disagrees twice in a row: noise must not slide the picture */
+      if(found&&!isNaN(sf0)&&(sf0<1750||sf0>2050)){const ry0=sf0<1900;if(ry0!==((y&1)===0)){this.pdis=(this.pdis||0)+1;if(this.pdis>=2){this.pdis=0;y=Math.min(hh-1,y+1);this.line=y;if(ry0!==((y&1)===0))y=this.line=y-1}}else this.pdis=0}}
      const ys=s+this.mr(12);
      for(let x=0;x<W;x++)this.Y[y*W+x]=this.yv(this.fq(ys+this.mr(x*88/W),Math.max(ys+this.mr((x+1)*88/W),ys+this.mr(x*88/W)+2)));
      const sp=s+this.mr(100),sepf=this.fq(sp+this.mr(0.8),sp+this.mr(3.7)),isRY=isNaN(sepf)?((y&1)===0):sepf<1900,cs=s+this.mr(106),p=y>>1;
@@ -3951,7 +4033,7 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
    const rg=s.getRangeAt(0).cloneRange();rg.collapse(false);
    let r=rg.getClientRects()[0];if(!r||!r.height)r=a.getBoundingClientRect();
    const vv=window.visualViewport,sc=$('#scroller'),acc=$('#acc');
-   const bottom=(vv?vv.offsetTop+vv.height:innerHeight)-(acc&&!acc.hidden?acc.offsetHeight:0)-18;
+   const bottom=viewBottom()-(acc&&!acc.hidden?acc.offsetHeight:0)-18;
    const top=sc.getBoundingClientRect().top+12;
    if(r.bottom>bottom)sc.scrollTop+=r.bottom-bottom;
    else if(r.top<top)sc.scrollTop-=top-r.top;
@@ -4022,6 +4104,8 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
  });
  /* ---- long-press on a card / sidebar row = full menu ---- */
  let lp=0;
+ /* the finger is still down where the menu opens: ignore it until it lifts, so nothing under it gets picked */
+ function guardSheet(){const sh=$('#sheet');if(!sh)return;sh.classList.add('guard');setTimeout(()=>sh.classList.remove('guard'),900)}
  (function(){
   let t=null,x0=0,y0=0,tid=null;
   const sel='.card[data-go],#side .ti[data-id]';
@@ -4029,11 +4113,11 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
   const cancel=()=>{clearTimeout(t);t=null};
   document.addEventListener('touchstart',e=>{cancel();const el=e.target.closest(sel);if(!el||e.touches.length!==1)return;if(e.target.closest('.tm,.tc'))return;
    x0=e.touches[0].clientX;y0=e.touches[0].clientY;tid=idOf(el);
-   t=setTimeout(()=>{t=null;lp=Date.now();hap&&hap(12);nodeMenu(tid)},480)},{passive:true});
+   t=setTimeout(()=>{t=null;lp=Date.now();hap&&hap(12);nodeMenu(tid);guardSheet()},480)},{passive:true});
   document.addEventListener('touchmove',e=>{if(t&&(Math.abs(e.touches[0].clientX-x0)>8||Math.abs(e.touches[0].clientY-y0)>8))cancel()},{passive:true});
   document.addEventListener('touchend',cancel);document.addEventListener('touchcancel',cancel);
-  document.addEventListener('contextmenu',e=>{const el=e.target.closest(sel);if(!el)return;e.preventDefault();nodeMenu(idOf(el))});
-  document.addEventListener('click',e=>{if(Date.now()-lp<700&&e.target.closest(sel+',#crumbs .crumb')){e.stopPropagation();e.preventDefault()}},true);
+  document.addEventListener('contextmenu',e=>{const el=e.target.closest(sel);if(!el)return;e.preventDefault();nodeMenu(idOf(el));if(e.pointerType==='touch'||Date.now()-lp<1500){lp=Date.now();guardSheet()}});
+  document.addEventListener('click',e=>{if(Date.now()-lp<900&&e.target.closest(sel+',#crumbs .crumb,#sheet,#swbg')){e.stopPropagation();e.preventDefault()}},true);
  })();
  /* ---- breadcrumb long-press: show the pages at that level ---- */
  function sibMenu(id){
@@ -4046,7 +4130,7 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
  (function(){
   let t=null,x0=0,y0=0;const cancel=()=>{clearTimeout(t);t=null};
   document.addEventListener('touchstart',e=>{cancel();const el=e.target.closest('#crumbs .crumb[data-cid]');if(!el||e.touches.length!==1)return;
-   x0=e.touches[0].clientX;y0=e.touches[0].clientY;const id=el.dataset.cid;t=setTimeout(()=>{t=null;lp=Date.now();hap&&hap(12);sibMenu(id)},450)},{passive:true});
+   x0=e.touches[0].clientX;y0=e.touches[0].clientY;const id=el.dataset.cid;t=setTimeout(()=>{t=null;lp=Date.now();hap&&hap(12);sibMenu(id);guardSheet()},450)},{passive:true});
   document.addEventListener('touchmove',e=>{if(t&&(Math.abs(e.touches[0].clientX-x0)>8||Math.abs(e.touches[0].clientY-y0)>8))cancel()},{passive:true});
   document.addEventListener('touchend',cancel);document.addEventListener('touchcancel',cancel);
   document.addEventListener('contextmenu',e=>{const el=e.target.closest('#crumbs .crumb[data-cid]');if(!el)return;e.preventDefault();sibMenu(el.dataset.cid)});
@@ -4100,6 +4184,7 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
   rowsEl().querySelectorAll('.txt[data-xs]').forEach(t=>{t.contentEditable=t.dataset.ce||PT;delete t.dataset.xs;delete t.dataset.ce});
   x=null;ms=null;
   if(a){try{s.setBaseAndExtent(a[0],a[1],f[0],f[1])}catch(e){}}
+  hideTouchUI();
  }
  function xRange(){
   if(!x)return null;const s=getSelection();if(!s.rangeCount||s.isCollapsed)return null;
@@ -4187,7 +4272,64 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
  document.addEventListener('copy',e=>{if(!x)return;const r=xRange();if(!r)return;e.preventDefault();e.clipboardData.setData('text/plain',xText(r))},true);
  document.addEventListener('cut',e=>{if(!x)return;const r=xRange();if(!r)return;e.preventDefault();e.clipboardData.setData('text/plain',xText(r));xDelete(r)},true);
  document.addEventListener('selectionchange',()=>{if(x&&!ms){const s=getSelection();if(!s.rangeCount||s.isCollapsed)xRelease(false)}});
- window.__xsel={active:()=>!!x,range:()=>xRange(),text:()=>{const r=xRange();return r&&xText(r)}};
+  /* ---------- touch: grow a text selection across bullets ----------
+    The phone's own selection handles stop at the edge of a bullet. "Select more" switches to our own handles, which can cross bullets. */
+ const xbar=document.createElement('div');xbar.className='xbar';xbar.hidden=true;
+ xbar.innerHTML='<button data-xb="copy">Copy</button><button data-xb="cut">Cut</button><button data-xb="del">Delete</button><button data-xb="done" class="pri">Done</button>';
+ document.body.appendChild(xbar);
+ const hA=document.createElement('div'),hF=document.createElement('div');[hA,hF].forEach(h=>{h.className='xh';h.hidden=true;h.setAttribute('role','slider');document.body.appendChild(h)});
+ let hd={A:hA,F:hF},drag=null;
+ const ptRect=(node,off)=>{try{const r=document.createRange();r.setStart(node,off);r.collapse(true);return r.getClientRects()[0]||r.getBoundingClientRect()}catch(e){return null}};
+ function placeHandles(){
+  const s=getSelection();
+  if(!x||!document.body.classList.contains('xtouch')||!s.rangeCount||s.isCollapsed){hA.hidden=hF.hidden=true;return}
+  const sr=sc.getBoundingClientRect();
+  [[hd.A,ptRect(s.anchorNode,s.anchorOffset)],[hd.F,ptRect(s.focusNode,s.focusOffset)]].forEach(([h,r])=>{
+   if(!r||(!r.height&&!r.top)||r.bottom<sr.top||r.top>sr.bottom){h.hidden=true;return}
+   h.hidden=false;h.style.left=Math.round(r.left-14)+'px';h.style.top=Math.round(r.bottom)+'px'});
+ }
+ function hideTouchUI(){document.body.classList.remove('xtouch');xbar.hidden=true;hA.hidden=hF.hidden=true;drag=null;toggleMore()}
+ function xTouchStart(){
+  const s=getSelection();if(x||!s.rangeCount||s.isCollapsed)return false;
+  const a=posOf(s.anchorNode,s.anchorOffset),f=posOf(s.focusNode,s.focusOffset);if(!a||!f)return false;
+  const an=[s.anchorNode,s.anchorOffset],fo=[s.focusNode,s.focusOffset];
+  ms={a:{node:an[0],off:an[1]}};xStart();
+  try{getSelection().setBaseAndExtent(an[0],an[1],fo[0],fo[1])}catch(e){}
+  document.body.classList.add('xtouch');xbar.hidden=false;placeHandles();toggleMore();return true;
+ }
+ function dragApply(){
+  if(!drag||!x)return;const f=focusPos(drag.cx,drag.cy-34);if(!f)return;
+  try{getSelection().setBaseAndExtent(drag.fx.node,drag.fx.off,f.node,f.off)}catch(_){return}
+  if(drag.h!==hd.F){const t=hd.A;hd.A=hd.F;hd.F=t}
+  x.cx=drag.cx;x.cy=drag.cy;placeHandles();
+ }
+ document.addEventListener('pointerdown',e=>{
+  const h=e.target.closest&&e.target.closest('.xh');if(!h||!x)return;e.preventDefault();e.stopPropagation();
+  const s=getSelection(),isA=h===hd.A,fx=isA?{node:s.focusNode,off:s.focusOffset}:{node:s.anchorNode,off:s.anchorOffset};
+  drag={h,fx,cx:e.clientX,cy:e.clientY,id:e.pointerId};x.down=true;try{h.setPointerCapture(e.pointerId)}catch(_){}
+ },true);
+ document.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;e.preventDefault();drag.cx=e.clientX;drag.cy=e.clientY;dragApply()},true);
+ const dragEnd=e=>{if(drag&&(!e||e.pointerId===drag.id)){drag=null;if(x){x.down=false;x.cy=0}}};
+ document.addEventListener('pointerup',dragEnd,true);document.addEventListener('pointercancel',dragEnd,true);
+ setInterval(()=>{if(drag){const r=sc.getBoundingClientRect();if(drag.cy<r.top+40)sc.scrollTop-=12;else if(drag.cy>r.bottom-40)sc.scrollTop+=12;dragApply()}},50);
+ sc.addEventListener('scroll',()=>{if(x)placeHandles()},{passive:true});
+ window.addEventListener('resize',()=>{if(x)placeHandles()});
+ xbar.addEventListener('pointerdown',e=>e.preventDefault());
+ xbar.addEventListener('click',e=>{
+  const b=e.target.closest('[data-xb]');if(!b||!x)return;const k=b.dataset.xb,r=xRange();
+  if(k==='done'){try{getSelection().removeAllRanges()}catch(_){}xRelease(false);return}
+  if(!r){xRelease(false);return}
+  if(k==='copy'||k==='cut'){const tx=xText(r);let ok=false;try{ok=document.execCommand('copy')}catch(_){}if(!ok){try{navigator.clipboard.writeText(tx)}catch(_){}}toast('Copied');if(k==='cut')xDelete(r);return}
+  if(k==='del')xDelete(r);
+ });
+ function toggleMore(){const b=document.querySelector('[data-acc=xmore]');if(!b)return;const s=getSelection();let ok=false;
+  if(!x&&s.rangeCount&&!s.isCollapsed){const a=s.anchorNode&&(s.anchorNode.nodeType===3?s.anchorNode.parentElement:s.anchorNode),t=a&&a.closest&&a.closest('.row .txt');ok=!!t&&t.contains(s.focusNode)}
+  b.hidden=!ok}
+ document.addEventListener('selectionchange',()=>{
+  toggleMore();
+  if(x&&document.body.classList.contains('xtouch')&&!drag){const s=getSelection();if(!s.rangeCount||s.isCollapsed){xRelease(false)}else placeHandles()}
+ });
+ window.__xsel={touchStart:xTouchStart,active:()=>!!x,range:()=>xRange(),text:()=>{const r=xRange();return r&&xText(r)}};
 })();
 /* ---- phase 4: back/forward history and sideways page browsing while pulling down ---- */
 (function(){
@@ -5926,6 +6068,7 @@ async function sendConn(fl){
 #sstv .ss_empty small{font-size:13px;opacity:.7}
 #sstv .ss_ei{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.14)}
 #sstv .ss_win{max-width:560px;max-height:52vh;margin:6px auto;overflow-y:auto;overflow-x:hidden;border-radius:14px;background:#000;border:1px solid var(--line);box-shadow:0 0 0 3px color-mix(in srgb,var(--ink) 14%,transparent);-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#sstv .ss_topw{position:sticky;top:0;height:0;z-index:3;display:flex;justify-content:center;align-items:flex-start;pointer-events:none}#sstv .ss_top{pointer-events:auto;margin:10px 0 0;height:34px;flex:none;padding:0 14px;border-radius:99px;border:0;background:var(--accent);color:var(--on-accent);font:600 13px system-ui;box-shadow:0 4px 14px rgba(0,0,0,.45);cursor:pointer}#sstv .ss_top[hidden]{display:none!important}
 #sstv .ss_win canvas.ss_pic{width:100%;height:auto;max-width:none;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;display:block}
 #sstv .ss_cols{display:block}
 @media (orientation:landscape) and (max-height:560px){
@@ -6014,9 +6157,9 @@ async function sendConn(fl){
   for(let i=0,j=0;i<im.data.length;i+=4,j+=3){im.data[i]=img.rgb[j];im.data[i+1]=img.rgb[j+1];im.data[i+2]=img.rgb[j+2];im.data[i+3]=255}
   x.putImageData(im,0,0);return c.toDataURL('image/png');
  }
- function pushRoll(img,partial){
+ function pushRoll(img,partial,why){
   if(!ROLL)ROLL=[];
-  ROLL.push({id:uid(),ts:Date.now(),h:img.h,mode:(img.mode&&img.mode.name)||'SSTV',part:!!partial,png:pngUrl(img)});
+  ROLL.push({id:uid(),ts:Date.now(),h:img.h,mode:(img.mode&&img.mode.name)||'SSTV',part:!!partial,why:why||'',png:pngUrl(img)});
   while(ROLL.length>ROLLMAX){const g=ROLL.shift();if(ST)ST.rsel.delete(g.id)}
   ST.live=false;rollSave();drawRoll();
   const w=$$('sswin'),wt=$$('sswait');if(w&&!ST.noFollow)w.scrollTop=w.scrollHeight;
@@ -6025,14 +6168,14 @@ async function sendConn(fl){
   const r=$$('ssroll');if(!r||!ST)return;
   const list=ROLL||[],idle=!ST.live;
   r.innerHTML=list.map((x,i)=>{const t=new Date(x.ts),hm=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
-   return `<div class="ss_it${ST.rsel.has(x.id)?' sel':''}" data-id="${x.id}"><img src="${x.png}" data-ss="item" data-id="${x.id}" alt="Picture ${i+1}"><span class="ss_bd">${esc(x.mode)}${x.part?' · partial':''} · ${hm}</span><button class="ss_ck" data-ss="chk" data-id="${x.id}" aria-label="Select picture ${i+1}">${ST.rsel.has(x.id)?'✓':''}</button><button class="ss_dx" data-ss="del" data-id="${x.id}" aria-label="Remove picture ${i+1}">✕</button></div>`}).join('');
+   return `<div class="ss_it${ST.rsel.has(x.id)?' sel':''}" data-id="${x.id}"><img src="${x.png}" data-ss="item" data-id="${x.id}" alt="Picture ${i+1}"><span class="ss_bd">${esc(x.mode)}${x.part?' · partial':''}${x.why?' · '+esc(x.why):''} · ${hm}</span><button class="ss_ck" data-ss="chk" data-id="${x.id}" aria-label="Select picture ${i+1}">${ST.rsel.has(x.id)?'✓':''}</button><button class="ss_dx" data-ss="del" data-id="${x.id}" aria-label="Remove picture ${i+1}">✕</button></div>`}).join('');
   const lv=$$('sslive'),wt=$$('sswait');
   if(lv)lv.hidden=!(ST.live||!list.length);
   if(wt)wt.hidden=!(idle&&list.length&&ST.listening);
   const n=ST.rsel.size,c=$$('sscount'),sl=$$('sssel');
   if(c)c.textContent=list.length?'· '+list.length:'';
   if(sl)sl.textContent=n?`${n} selected. Save puts ${n>1?'them':'it'} in ${n>1?'one tall image, top to bottom':'a single image'}.`:'Tap the circle on a picture to select it. They stay here until you clear them.';
-  syncBtns();
+  syncBtns();topBtn();
  }
  function selected(){return (ROLL||[]).filter(x=>ST.rsel.has(x.id))}
  async function stitch(items){
@@ -6054,7 +6197,7 @@ async function sendConn(fl){
  /* ---------- receive ---------- */
  function drawRecv(){
   const b=$$('ssb');
-  b.innerHTML=`<div class="ss_cols"><div class="ss_view"><div class="ss_win" id="sswin"><div id="ssroll"></div><div id="sslive"><canvas class="ss_pic" id="sscv" width="320" height="240" data-ss="full" style="cursor:zoom-in"></canvas></div><div class="ss_wait" id="sswait" hidden>The next picture appears here</div></div>
+  b.innerHTML=`<div class="ss_cols"><div class="ss_view"><div class="ss_win" id="sswin"><div class="ss_topw"><button class="ss_top" id="sstop" data-ss="top" hidden>↑ Back to start of picture</button></div><div id="ssroll"></div><div id="sslive"><canvas class="ss_pic" id="sscv" width="320" height="240" data-ss="full" style="cursor:zoom-in"></canvas></div><div class="ss_wait" id="sswait" hidden>The next picture appears here</div></div>
   <div class="ss_st" id="sstx">Not listening</div><p class="ss_sub" id="sssub"></p>
   <div class="ss_bar"><i id="ssbar"></i></div><div class="ss_lv"><i id="sslv"></i></div></div><div class="ss_ctl"><p class="hint">Hold this device near a speaker or radio playing a slow-scan picture. It draws as it arrives. Keep it quiet. Tap the picture to see it full screen.</p>
   <div class="ss_row"><button class="ss_tb pri" data-ss="listen" id="sslisten">${ic('recv',18)}Listen</button><button class="ss_tb" data-ss="pause" id="sspause" disabled>Pause</button><button class="ss_tb" data-ss="clear" id="ssclear">Clear all</button></div>
@@ -6068,7 +6211,15 @@ async function sendConn(fl){
   const cv=$$('sscv'),cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,320,240);
   if(ST.live&&ST.shown){cv.height=ST.shown.h;paintImg(ST.shown.rgb,ST.shown.h)}
   syncBtns();drawRoll();rollLoad();
+  const w2=$$('sswin');if(w2)w2.addEventListener('scroll',topBtn,{passive:true});
  }
+ /* a button that jumps back to where the latest picture starts, shown once you have scrolled past that point */
+ function topY(){const win=$$('sswin'),lv=$$('sslive');if(!win)return null;
+  const rel=el=>el.getBoundingClientRect().top-win.getBoundingClientRect().top+win.scrollTop;
+  if(ST&&ST.live&&lv&&!lv.hidden)return Math.max(0,rel(lv)-8);
+  const it=document.querySelector('#ssroll .ss_it:last-child');return it?Math.max(0,rel(it)-8):null}
+ function topBtn(){const b=$$('sstop'),win=$$('sswin');if(!b||!win)return;if(ST&&ST.noFollow&&win.scrollHeight-win.scrollTop-win.clientHeight<24&&win.scrollHeight>win.clientHeight+40)ST.noFollow=false;const y=topY();if(y==null){b.hidden=true;return}
+  const above=win.scrollTop>y+60,below=y>win.scrollTop+win.clientHeight-60;b.hidden=!(above||below);if(above||below)b.textContent=above?'↑ Back to start of picture':'↓ Jump to latest picture'}
  function paintImg(rgb,h,line){
   for(const id of ['sscv','ssfullcv']){
    const cv=$$(id);if(!cv||cv.dataset.static)continue;if(cv.height!==h)cv.height=h;
@@ -6121,17 +6272,19 @@ async function sendConn(fl){
   const d=new E.Decoder(rate);
   d.onUpdate=(k,dd)=>{
    if(!ST||ST.dec!==d)return;
+   if(k==='abort'){ST.live=false;ST.shown=null;say('Listening…','Waiting for a picture. Start it on the other device.');drawRoll();return}
    const h=dd.mode.h||E.H;
-   if(k==='vis'){ST.shown=null;ST.noFollow=false;ST.live=true;say(dd.blind?'Joined partway: '+dd.mode.name:'Receiving '+dd.mode.name+'…',dd.blind?'Missed the start, so the picture begins where it started hearing it.':'Header heard. The picture draws line by line.');const cv=$$('sscv');if(cv){cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,W,h)}drawRoll();
+   if(k==='vis'){ST.shown=null;ST.live=true;say(dd.blind?'Joined partway: '+dd.mode.name:'Receiving '+dd.mode.name+'…',dd.blind?'Missed the start, so the picture begins where it started hearing it.':'Header heard. The picture draws line by line.');const cv=$$('sscv');if(cv){cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,W,h)}drawRoll();
     /* bring the new picture into view with the bottom of the last one still showing above it */
-    const w0=$$('sswin'),lv=$$('sslive');if(w0&&lv)w0.scrollTop=ROLL&&ROLL.length?Math.max(0,lv.offsetTop-44):0;syncBtns();return}
+    const w0=$$('sswin'),lv=$$('sslive');if(w0&&lv&&!ST.noFollow)w0.scrollTop=ROLL&&ROLL.length?Math.max(0,lv.offsetTop-44):0;syncBtns();return}
    ST.shown={rgb:dd.rgb.slice(0,W*h*3),h,mode:dd.mode};paintImg(dd.rgb,h,dd.line);
    const bar=$$('ssbar');if(bar)bar.style.width=Math.round(dd.line/h*100)+'%';
+   if(k==='done'&&!dd.good()){ST.live=false;ST.shown=null;say('Listening…','That was only noise, so it was not kept.');drawRoll();if(dd.handoff)dd.rearm();else ST.dec=newDecoder(ST.rate);return}
    if(k==='done'){
     say('Done · '+dd.mode.name,ST.fromFile?'Added to the roll. Reading on for more…':'Added to the roll. Listening for the next one.');
     try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}
-    pushRoll(ST.shown,!!(dd.blind||dd.partial));
-    if((ST.listening&&!ST.fromFile)||(ST.fromFile&&ST.fileRun))ST.dec=newDecoder(ST.rate);
+    pushRoll(ST.shown,!!(dd.blind||dd.partial),dd.endWhy==='header'?(dd.bottom?'bottom part, next one began':'next one began'):'');
+    if(dd.handoff)dd.rearm();else if((ST.listening&&!ST.fromFile)||(ST.fromFile&&ST.fileRun))ST.dec=newDecoder(ST.rate);
     syncBtns();
    }else{say((dd.blind?'Joined partway: ':'Receiving ')+dd.mode.name+'… '+Math.round(dd.line/h*100)+'%',null);syncBtns()}
   };
@@ -6155,8 +6308,8 @@ async function sendConn(fl){
   ST.listening=true;ST.paused=false;ST.t0=Date.now();ST.lastLoud=Date.now();awake(true);
   say('Listening…','Waiting for a picture. Start it on the other device.');
   ST.lvT=setInterval(()=>{if(!ST){return}const l=$$('sslv');if(l)l.style.width=Math.min(100,ST.peak*260)+'%';if(ST.peak>0.01)ST.heard=true;if(ST.peak>0.02)ST.lastLoud=Date.now();ST.peak*=.6;
-   if(ST.listening&&!ST.paused&&ST.dec&&ST.dec.state==='image'&&Date.now()-ST.lastLoud>5000){const dd=ST.dec,hh=dd.mode.h||E.H,pct=Math.round(dd.line/hh*100);ST.dec=newDecoder(ST.rate);say('Signal ended at '+pct+'%','Showing the part that arrived. Save it, or start again.');
-    if(ST.shown)pushRoll(ST.shown,true);syncBtns()}
+   if(ST.listening&&!ST.paused&&ST.dec&&ST.dec.state==='image'&&Date.now()-ST.lastLoud>5000){const dd=ST.dec,hh=dd.mode.h||E.H,pct=Math.round(dd.line/hh*100),ok=dd.good();ST.dec=newDecoder(ST.rate);
+    if(ok){say('Signal ended at '+pct+'%','Showing the part that arrived. Save it, or start again.');if(ST.shown)pushRoll(ST.shown,true)}else{ST.live=false;ST.shown=null;say('Listening…','That was only noise, so it was not kept.');drawRoll()}syncBtns()}
    if(ST.listening&&!ST.heard&&Date.now()-ST.t0>9000)say(null,'Cannot hear anything yet. Turn the sound up and bring it closer.')},200);
   syncBtns();
  }
@@ -6278,6 +6431,7 @@ async function sendConn(fl){
    const has=(ROLL&&ROLL.length)||ST.live;
    if(has&&!ST.clearArm){ST.clearArm=true;m.textContent='Tap again to clear all';m.classList.add('pri');clearTimeout(ST.clearT);ST.clearT=setTimeout(()=>{ST.clearArm=false;const b=$$('ssclear');if(b){b.textContent='Clear all';b.classList.remove('pri')}},3000);return}
    ST.clearArm=false;clearTimeout(ST.clearT);const rate=ST.rate;ST.fileRun=false;FT++;ST.shown=null;ST.live=false;ROLL=[];ST.rsel=new Set();rollSave();if(ST.listening)ST.dec=newDecoder(rate);ST.paused=false;drawRecv();say(ST.listening?'Listening…':'Cleared',ST.listening?'Waiting for a picture.':'');return}
+  if(k==='top'){const w=$$('sswin'),y=topY();if(w&&y!=null){ST.noFollow=true;w.scrollTo({top:y,behavior:'smooth'})}return}
   if(k==='mode'){ST.pick=+m.dataset.v;syncBtns();return}
   if(k==='force'){if(ST.dec&&ST.pick){ST.dec.force(ST.pick)}return}
   if(k==='file'){const f=document.createElement('input');f.type='file';f.accept='audio/*,.wav';f.style.cssText='position:fixed;left:-999px;opacity:0';document.body.appendChild(f);f.onchange=()=>{const x=f.files[0];f.remove();if(x)decodeFile(x)};f.addEventListener('cancel',()=>f.remove());f.click();return}
@@ -7438,7 +7592,7 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
 })();
 /* ---------- sound transfer: ggwave (data) and SSTV (pictures) ---------- */
 (function(){
- const st=document.createElement('style');st.textContent='.snd .bar{height:8px;border-radius:6px;background:var(--accent-soft);overflow:hidden;margin:10px 0}.snd .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}.snd .lvl{height:4px;border-radius:3px;background:var(--accent-soft);overflow:hidden;margin:8px 0}.snd .lvl i{display:block;height:100%;width:0;background:var(--muted);transition:width .1s}.snd canvas{display:block;width:100%;max-width:340px;aspect-ratio:5/4;margin:8px auto;border-radius:12px;background:#111}.snd .big{font-size:15px;font-weight:600;text-align:center;margin:6px 0}.snd .spec{position:relative;margin:10px 0;border-radius:12px;overflow:hidden;background:#0d0f12}.snd .spec canvas{display:block;width:100%;height:150px;max-width:none;aspect-ratio:auto;margin:0;border-radius:0}.snd .sb{position:absolute;left:0;right:0;border-top:1px dashed #ffffff55;border-bottom:1px dashed #ffffff55;font-size:10.5px;color:#ffffffb0;padding:1px 6px;pointer-events:none;transition:background .2s,color .2s}.snd .sb.hot{background:#3ddc9738;color:#fff;border-color:#3ddc97}.snd .grid{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:8px 0 2px}.snd .grid i{width:16px;height:16px;border-radius:5px;background:var(--accent-soft);transition:background .25s,transform .3s}.snd .grid.sm i{width:9px;height:9px;border-radius:3px}.snd .grid i.on{background:var(--accent)}.snd .grid i.flash{transform:scale(1.6)}';document.head.appendChild(st);
+ const st=document.createElement('style');st.textContent='.slpics .hint{margin:8px 0 4px}.slrow{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}.slth{position:relative;flex:0 0 auto;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:0;overflow:hidden;cursor:pointer}.slth img{display:block!important;height:64px!important;width:auto!important;max-width:none!important}.slth span{position:absolute;left:4px;bottom:4px;font-size:10px;background:var(--ink);color:var(--paper);border-radius:6px;padding:1px 5px}.snd .bar{height:8px;border-radius:6px;background:var(--accent-soft);overflow:hidden;margin:10px 0}.snd .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}.snd .lvl{height:4px;border-radius:3px;background:var(--accent-soft);overflow:hidden;margin:8px 0}.snd .lvl i{display:block;height:100%;width:0;background:var(--muted);transition:width .1s}.snd canvas{display:block;width:100%;max-width:340px;aspect-ratio:5/4;margin:8px auto;border-radius:12px;background:#111}.snd .big{font-size:15px;font-weight:600;text-align:center;margin:6px 0}.snd .spec{position:relative;margin:10px 0;border-radius:12px;overflow:hidden;background:#0d0f12}.snd .spec canvas{display:block;width:100%;height:150px;max-width:none;aspect-ratio:auto;margin:0;border-radius:0}.snd .sb{position:absolute;left:0;right:0;border-top:1px dashed #ffffff55;border-bottom:1px dashed #ffffff55;font-size:10.5px;color:#ffffffb0;padding:1px 6px;pointer-events:none;transition:background .2s,color .2s}.snd .sb.hot{background:#3ddc9738;color:#fff;border-color:#3ddc97}.snd .grid{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:8px 0 2px}.snd .grid i{width:16px;height:16px;border-radius:5px;background:var(--accent-soft);transition:background .25s,transform .3s}.snd .grid.sm i{width:9px;height:9px;border-radius:3px}.snd .grid i.on{background:var(--accent)}.snd .grid i.flash{transform:scale(1.6)}';document.head.appendChild(st);
  const PK=96,MAXB=12000,SEC={n:13.45,f:9.25,x:5.1},PROTO={n:'GGWAVE_PROTOCOL_AUDIBLE_NORMAL',f:'GGWAVE_PROTOCOL_AUDIBLE_FAST',x:'GGWAVE_PROTOCOL_AUDIBLE_FASTEST'},PROTO_US={n:'GGWAVE_PROTOCOL_ULTRASOUND_NORMAL',f:'GGWAVE_PROTOCOL_ULTRASOUND_FAST',x:'GGWAVE_PROTOCOL_ULTRASOUND_FASTEST'};
  const kb=n=>n<1024?n+' B':Math.round(n/1024)+' KB';
  const fmt=s=>s<90?Math.round(s)+' s':Math.round(s/6)/10+' min';
@@ -7590,7 +7744,8 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
   if(L!==me)return;
   specStart(me);
   me.watch=setInterval(()=>{if(!alive()||L!==me){if(L===me)stopListen();else clearInterval(me.watch);return}
-   const l=$('#sllv');if(l)l.style.width=Math.min(100,me.peak*260)+'%';me.peak*=.6;
+   const l=$('#sllv');if(l)l.style.width=Math.min(100,me.peak*260)+'%';if(me.peak>0.02)me.lastLoud=Date.now();me.peak*=.6;
+   if(me.mode==='p'&&me.dec&&me.dec.state==='image'&&Date.now()-(me.lastLoud||me.t0)>5000){if(me.dec.good())collectPic(me,true);else setTab(me,'p')}
    const n=$('#slnote');if(n&&!me.heard&&Date.now()-me.t0>9000)n.textContent='I cannot hear anything yet. Check the other device’s volume and bring the phones closer.'},200);
   setTab(me,me.mode);
  }
@@ -7604,20 +7759,21 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
    if(note)note.textContent='The other device: Send by sound. Hold the phones close, speaker toward the microphone.';
    if(!me.gg)ggLoad(me.mic.rate).then(g=>{me.gg=g}).catch(()=>{const t=$('#sltx');if(t)t.textContent='Sound engine could not start'});
    /* a picture can start while you are on Data: watch for its header too, and jump to Picture when it is heard */
-   const pd=me.pre=new SSTV.Decoder(me.mic.rate);
+   const pd=me.pre=new SSTV.Decoder(me.mic.rate);pd.blindOn=false;
    pd.onUpdate=k=>{if(k==='vis'&&L===me&&me.mode==='d'&&me.pre===pd){me.preKeep=true;setTab(me,'p');const t=$('#sltx');if(t)t.textContent='A picture is coming in…'}};
   }else{
-   body.innerHTML='<canvas id="slcv" width="320" height="256"></canvas><div class="big" id="sltx">Waiting for a picture…</div>';
+   body.innerHTML='<canvas id="slcv" width="320" height="256"></canvas><div class="big" id="sltx">Waiting for a picture…</div><div id="slpics" class="slpics"></div>';drawPics(me);
    if(note)note.textContent='The other device: Send picture by sound. Stay quiet while it plays.';
    const cx=$('#slcv').getContext('2d');cx.fillStyle='#111';cx.fillRect(0,0,320,256);
    const d=me.dec=pre||new SSTV.Decoder(me.mic.rate);if(!pre)me.pre=null;
    if(!me.gg)ggLoad(me.mic.rate).then(g=>{me.gg=g}).catch(()=>{});
    d.onUpdate=(k,dd)=>{if(L!==me||me.dec!==d)return;const t=$('#sltx');
+    if(k==='abort'){if(t)t.textContent='Waiting for a picture…';const c2=$('#slcv');if(c2){const x2=c2.getContext('2d');x2.fillStyle='#111';x2.fillRect(0,0,320,256)}const kb3=$('#slkeep');if(kb3)kb3.hidden=true;return}
     if(k==='vis'){if(t)t.textContent=dd.blind?'Joined partway: '+dd.mode.name+'…':'Receiving '+dd.mode.name+'…'}
     else{const im=cx.createImageData(320,256),o=im.data,r=dd.rgb;for(let i=0,j=0;i<o.length;i+=4,j+=3){o[i]=r[j];o[i+1]=r[j+1];o[i+2]=r[j+2];o[i+3]=255}cx.putImageData(im,0,0);
      if(t)t.textContent=k==='done'?'Done':'Receiving… '+Math.round(dd.line/256*100)+'%';
      const kb2=$('#slkeep');if(kb2&&dd.line>16)kb2.hidden=false;
-     if(k==='done')finishPicture(me)}};
+     if(k==='done'){if(dd.good())collectPic(me,dd.partial,dd);else if(dd.handoff)dd.rearm();else setTab(me,'p')}}};
   }
  }
  function onAudio(me,x){
@@ -7648,6 +7804,19 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
    try{window.__qr.feed(str,true)}catch(e){toast('Could not read what arrived')}
   }
  }
+ /* Listen keeps going after a picture: each finished (or cut-off) picture goes into a strip, and the decoder starts fresh for the next one */
+ function drawPics(me){
+  const bx=$('#slpics');if(!bx)return;const a=me.pics||[];
+  bx.innerHTML=a.length?'<p class="hint"><b>'+a.length+' picture'+(a.length>1?'s':'')+' heard.</b> Still listening. Tap one to save it.</p><div class="slrow">'+a.map((q,i)=>'<button class="slth" data-snd="pic" data-i="'+i+'" aria-label="Save picture '+(i+1)+'"><img src="'+q.url+'" alt="">'+(q.partial?'<span>partial</span>':'')+'</button>').join('')+'</div>':'';
+ }
+ function collectPic(me,partial,dd){
+  const cv=$('#slcv');if(!cv||L!==me)return;
+  let url;try{url=cv.toDataURL('image/jpeg',.92)}catch(e){return}
+  (me.pics=me.pics||[]).push({url,partial:!!partial});
+  try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}
+  if(dd&&dd.handoff){dd.rearm();const c3=$('#slcv');if(c3){const x3=c3.getContext('2d');x3.fillStyle='#111';x3.fillRect(0,0,320,256)}const k3=$('#slkeep');if(k3)k3.hidden=true;drawPics(me)}else setTab(me,'p');
+  const t=$('#sltx');if(t)t.textContent=dd&&dd.endWhy==='header'?'Saved. The next one is starting…':'Saved. Listening for the next one…';
+ }
  function finishPicture(me){
   const cv=$('#slcv');if(!cv)return;
   cv.toBlob(async bl=>{
@@ -7673,7 +7842,8 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
   else if(k==='vis'){if(SP){SP.vis=+m.dataset.v;document.querySelectorAll('#spm button').forEach(b=>b.classList.toggle('on',b===m))}}
   else if(k==='pgo')runPicture();
   else if(k==='tab'){if(L)setTab(L,m.dataset.v)}
-  else if(k==='keep'){if(L&&L.mode==='p')finishPicture(L)}
+  else if(k==='keep'){if(L&&L.mode==='p')collectPic(L,true)}
+  else if(k==='pic'){const q=L&&L.pics&&L.pics[+m.dataset.i];if(q)saveImg(q.url,'picture-by-sound-'+(+m.dataset.i+1))}
   else if(k==='page'){const n=S.nodes[m.dataset.id];if(!n)return;e.stopPropagation();closeSheet();sendData(nm(n),{t:'page',n:devName(),ts:Date.now(),title:nm(n),blocks:exportBlocks(n)})}
  },true);
  /* ---- entry points ---- */
