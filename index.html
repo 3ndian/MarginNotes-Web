@@ -203,6 +203,7 @@ body.editing .fab,body.selmode .fab,body.dragging .fab{display:none}
 .selbar,.acc{position:fixed;z-index:40;left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:20px;background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow);max-width:calc(100vw - 20px);overflow-x:auto}
 .selbar{bottom:calc(18px + var(--sab,env(safe-area-inset-bottom,0px)));align-items:center}
 .selbar .cnt{padding:0 10px;font-size:13px;color:var(--muted);white-space:nowrap}
+.selbar{flex-direction:column;align-items:stretch;gap:4px}.selr1,.selr2{display:flex;gap:2px;align-items:center}.selr1{justify-content:space-between}.selr2{overflow-x:auto;scrollbar-width:none}.selr2::-webkit-scrollbar{display:none}.selp{flex:none;height:40px;padding:0 12px;border-radius:14px;background:var(--accent-soft);color:var(--ink);font-weight:600;font-size:13px;white-space:nowrap}.selr1 .seldone{margin:0 0 0 2px}
 .acc{bottom:0;border-radius:20px;width:calc(100% - 16px);max-width:calc(100% - 16px);justify-content:space-around;margin-bottom:8px}
 @media (hover:hover) and (pointer:fine){.acc{display:none!important}}
 html.nbar .acc:not([hidden]){display:flex!important}
@@ -388,6 +389,10 @@ details.psec>summary::after{content:"+";color:var(--muted)}details.psec[open]>su
 .gnote{padding:8px 4px;display:flex;gap:10px;align-items:center;font-size:14px;color:var(--muted,#888);flex-wrap:wrap}
 .page.fulldb{max-width:none;padding-left:10px;padding-right:10px}.fulldb .fullbtn{display:none}
 .scroller.swiping{box-shadow:0 14px 40px #0004;will-change:transform;touch-action:none}.scroller.pgin{animation:pgin .34s cubic-bezier(.2,.8,.2,1)}@keyframes pgin{from{transform:scale(.95);opacity:.2}to{transform:none;opacity:1}}
+.swlad{position:fixed;z-index:5;overflow:hidden;display:flex;align-items:flex-end;pointer-events:none;box-sizing:border-box;padding:0 12px}.swl{width:100%;display:flex;flex-direction:column;gap:6px;padding-bottom:8px}
+.swr{position:relative;display:flex;align-items:center;gap:10px;height:46px;flex:none;padding:0 14px;border-radius:16px;background:var(--paper);border:1px solid var(--line);color:var(--muted);opacity:calc(.85 - var(--d)*.08);transform:scale(calc(.97 - var(--d)*.03));transform-origin:50% 100%;transition:transform .15s,background .15s,opacity .15s,border-color .15s;box-shadow:0 3px 10px rgba(0,0,0,.1)}
+.swr .swic{display:inline-flex;color:var(--c,currentColor)}.swr b{font-weight:600;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.swr small{font-size:12px}.swr em{display:none;font-style:normal;font-size:12px;font-weight:600}
+.swr.next{opacity:1;border-color:var(--accent)}.swr.sel{opacity:1;background:var(--accent);border-color:var(--accent);color:var(--on-accent);transform:scale(1.02);box-shadow:0 8px 22px rgba(0,0,0,.25)}.swr.sel b,.swr.sel .swic{color:var(--on-accent)}.swr.sel small{display:none}.swr.sel em{display:inline}
 .swhint{position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:6px;align-items:center;padding:6px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:13px;opacity:0;pointer-events:none;transition:background .15s}.swhint .swic{display:inline-flex;align-items:center}.swhint.ready .swic{color:inherit!important}.swhint.ready{background:var(--accent);color:var(--accent-ink,#fff)}
 
 /* all notes */
@@ -599,6 +604,7 @@ save:'<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/>',more:'<circle cx="6
 kb:'<path d="M5 9l7 7 7-7"/>',sliders:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/>',redo:'<path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/>',toparent:'<path d="M18 18V9a2 2 0 0 0-2-2H6M10 3 6 7l4 4"/>',exitsec:'<path d="M5 6v8a2 2 0 0 0 2 2h11M14 12l4 4-4 4"/>',home:'<path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',slash:'<path d="M16 4 8 20"/>',all:'<path d="M4 6h16M4 12h16M4 18h16"/>',send:'<path d="M5 12h11M12 7l5 5-5 5M20 5v14"/>',topage:'<path d="M7 3.5h7l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1-1.5z"/><path d="M9 14h6M12 11l3 3-3 3"/>'};
 const ic=(n,s=20)=>`<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]||''}</svg>`;
 Object.assign(IC,{lock:'<rect x="5" y="11" width="14" height="9" rx="3"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',scan:'<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="8.2" y="8.2" width="3" height="3" rx=".6" fill="currentColor" stroke="none"/><rect x="12.8" y="8.2" width="3" height="3" rx=".6" fill="currentColor" stroke="none"/><rect x="8.2" y="12.8" width="3" height="3" rx=".6" fill="currentColor" stroke="none"/><rect x="13.3" y="13.3" width="2" height="2" rx=".4" fill="currentColor" stroke="none"/>',recv:'<circle cx="12" cy="14" r="2.2" fill="currentColor" stroke="none"/><path d="M16.7 15.71A5 5 0 1 0 7.3 15.71M20.93 17.25A9.5 9.5 0 1 0 3.07 17.25"/>'});
+IC.sync='<path d="M4 12a8 8 0 0 1 13.5-5.8L20 8M20 4v4h-4M20 12a8 8 0 0 1-13.5 5.8L4 16M4 20v-4h4"/>';
 const isRecv=c=>!!c&&c.kind==='folder'&&c.title==='Received'&&c.parent==='root';
 const kic=(c,s)=>ic(isRecv(c)?'recv':(c&&c.kind==='folder')?'folder':'page',s);
 const PT=(()=>{try{const d=document.createElement('div');d.contentEditable='plaintext-only';return d.contentEditable==='plaintext-only'?'plaintext-only':'true'}catch(e){return 'true'}})();
@@ -1071,7 +1077,10 @@ function updateSelUI(){
  const sb=$('#selbar');sb.hidden=!on;
  if(on){if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();setEditing(false);$('#selcnt').textContent=sel.size+' selected'}
 }
-$('#selbar').innerHTML=`<span class="cnt" id="selcnt"></span><button class="seldone" data-sel="check" aria-label="Done">Done</button>`+[['undo','Undo'],['redo','Redo'],['all','Select all'],['outdent','Outdent'],['indent','Indent'],['up','Move up'],['down','Move down'],['copy','Duplicate'],['topage','Move into new page'],['send','Send to another page'],['trash','Delete']].map(([a,l])=>`<button class="ib ${a==='trash'?'bad':''}" data-sel="${a}" aria-label="${l}" title="${l}">${ic(a)}</button>`).join('');
+$('#selbar').innerHTML=`<div class="selr1"><span class="cnt" id="selcnt"></span><button class="selp" data-sel="cpy">Copy</button><button class="selp" data-sel="cut">Cut</button><button class="selp" data-sel="mvpage">Move to page…</button><button class="seldone" data-sel="check" aria-label="Done">Done</button></div><div class="selr2">`+[['undo','Undo'],['redo','Redo'],['all','Select all'],['outdent','Outdent'],['indent','Indent'],['up','Move up'],['down','Move down'],['copy','Duplicate'],['topage','Move into new page'],['send','Send to another page'],['trash','Delete']].map(([a,l])=>`<button class="ib ${a==='trash'?'bad':''}" data-sel="${a}" aria-label="${l}" title="${l}">${ic(a)}</button>`).join('')+'</div>';
+async function copyOut(t){
+ try{await navigator.clipboard.writeText(t);return true}catch(e){}
+ try{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;left:-999px;top:0;opacity:0';document.body.appendChild(a);a.select();const ok=document.execCommand('copy');a.remove();return ok}catch(e){return false}}
 function selIdx(){const o=[];B.forEach((b,k)=>{if(sel.has(b.id))o.push(k)});return o}
 $('#selbar').addEventListener('click',e=>{
  const a=e.target.closest('[data-sel]');if(!a)return;const k=a.dataset.sel,ix=selIdx();
@@ -1081,6 +1090,14 @@ $('#selbar').addEventListener('click',e=>{
  if(k==='all'){B.forEach(b=>sel.add(b.id));updateSelUI();return}
  if(!ix.length)return;
  if(k==='send'){openSend();return}
+ if(k==='mvpage'){sendMode='move';openSend();return}
+ if(k==='cpy'||k==='cut'){
+  let tx;try{tx=blocksToMD(ix.map(i=>B[i])).replace(/\n+$/,'')}catch(er){tx=ix.map(i=>B[i].text||'').join('\n')}
+  const n=ix.length;
+  copyOut(tx).then(ok=>{if(!ok){toast('Could not copy');return}
+   if(k==='cut'){const t=$('#selbar [data-sel=trash]');if(t)t.click();toast('Cut '+n+' line'+(n>1?'s':'')+'. Paste it anywhere.')}
+   else toast('Copied '+n+' line'+(n>1?'s':''))});
+  return}
  snapshot();
  if(k==='indent'){ix.forEach(i=>{if(i>0&&B[i].ind<=B[i-1].ind)B[i].ind++});normalize();syncRows()}
  else if(k==='outdent'){ix.forEach(i=>{if(B[i].ind>0)B[i].ind--});normalize();syncRows()}
@@ -2822,9 +2839,13 @@ function dbToFull(b){
  const lvl=d=>{const m=ancs().length;if(d<120||!m)return 0;return Math.min(m,1+Math.floor((d-120)/100))};
  const lname=id=>id==='root'?'Home':nm(S.nodes[id]);
  const nico=id=>id==='root'?ic('home',16):kic(S.nodes[id],16); /* the page's own icon, so it is recognisable while pulling */
- function hintTxt(l){const a=ancs();if(!hint)return;const t=l?a[l-1]:a[0];const col=window.nodeColor?nodeColor(t):'';hint.innerHTML=`${ic('up',16)}<span class="swic"${col?` style="color:${col}"`:''}>${nico(t)}</span>${col?`<i class="swdot" style="background:${col}"></i>`:''}<span>${esc(lname(t))}</span>${l>1?`<b class="swn">${l}</b>`:''}`;hint.style.borderColor=col||''}
- function mkHint(){if(hint)return;hint=document.createElement('div');hint.className='swhint';const p=parentOf();hint.innerHTML=`${ic('up',16)}${p?`<span class="swic">${nico(p.id)}</span>`:''}<span>${esc(p?(p.id==='root'?'Home':nm(p)):'')}</span>`;document.body.appendChild(hint);const r=sc.getBoundingClientRect();hint.style.top=(r.top+12)+'px'}
- function reset(anim){sc.style.transition=anim?'transform .28s cubic-bezier(.2,.9,.3,1.2)':'none';sc.style.transform='';setTimeout(()=>{sc.style.transition='';sc.classList.remove('swiping')},anim?300:0);if(hint){hint.remove();hint=null}}
+ function hintTxt(l){if(!hint)return;hint.querySelectorAll('.swr').forEach(e=>{const on=+e.dataset.l===(l||1);e.classList.toggle('sel',on&&l>0);e.classList.toggle('next',on&&!l)})}
+ /* the ladder: every page above this one, as cards stacked in the gap the page leaves as it is pulled down. The card the page will go to lights up. */
+ function mkHint(){if(hint)return;hint=document.createElement('div');hint.className='swlad';const a=ancs();
+  hint.innerHTML='<div class="swl">'+a.slice().reverse().map(id=>{const L=a.indexOf(id)+1,col=window.nodeColor?nodeColor(id):'',nk=(S.nodes[id].kids||[]).length;
+   return `<div class="swr" data-l="${L}" style="--d:${L-1}${col?';--c:'+col:''}"><span class="swic">${nico(id)}</span><b>${esc(lname(id))}</b><small>${nk} ${nk===1?'item':'items'}</small><em>release to open</em></div>`}).join('')+'</div>';
+  document.body.appendChild(hint);const r=sc.getBoundingClientRect();hint.style.top=r.top+'px';hint.style.left=r.left+'px';hint.style.width=r.width+'px';hint.style.height='0px'}
+ function reset(anim){sc.style.transition=anim?'transform .28s cubic-bezier(.2,.9,.3,1.2)':'none';sc.style.transform='';setTimeout(()=>{sc.style.transition='';sc.style.transformOrigin='';sc.classList.remove('swiping')},anim?300:0);if(hint){hint.remove();hint=null}}
  sc.addEventListener('touchstart',e=>{
   sw=null;if(e.touches.length!==1||S.cur==='root'||sel.size||sc.scrollTop>0||document.body.classList.contains('keeping'))return;
   if(e.target.closest('.grip,.dbs,.bboard,.calg,.gal .gcard .ce,.selbar,input,textarea,select,.ce'))return;
@@ -2835,14 +2856,14 @@ function dbToFull(b){
   const dx=t.clientX-sw.x,dy=t.clientY-sw.y;
   if(!sw.on){
    if(sc.scrollTop>0||dy<-6||(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy))){sw=null;return}
-   if(dy>6&&dy>Math.abs(dx)*1.3&&parentOf()){sw.on=true;sw.y0=t.clientY;const a=document.activeElement;if(a&&a.blur&&a!==document.body)a.blur();sc.classList.add('swiping');sc.style.transition='none';mkHint()}else return;
+   if(dy>6&&dy>Math.abs(dx)*1.3&&parentOf()){sw.on=true;sw.y0=t.clientY;const a=document.activeElement;if(a&&a.blur&&a!==document.body)a.blur();sc.classList.add('swiping');sc.style.transition='none';sc.style.transformOrigin='50% 0';mkHint()}else return;
   }
   e.preventDefault();
   if(window.ladder&&ladder.move(sw,t,t.clientX-sw.x,Math.max(0,t.clientY-sw.y0),lvl(Math.max(0,t.clientY-sw.y0)))){sc.style.transform='translateY(0) scale(.97)';if(hint)hint.style.opacity='0';return}
   const d=Math.max(0,t.clientY-sw.y0),now=Date.now();sw.v=(t.clientY-sw.ly)/Math.max(1,now-sw.lt);sw.ly=t.clientY;sw.lt=now;sw.d=d;
   const p=Math.min(1,d/160),eased=d<160?d:160+(d-160)*.7;
-  sc.style.transform=`translateY(${eased}px) scale(${1-p*.05})`;
-  if(hint){hint.style.opacity=String(Math.min(1,d/70));const l=lvl(d);hint.classList.toggle('ready',l>0);if(hint._l!==l){hint._l=l;hintTxt(l);if(l>0&&window.hap)hap(10)}}
+  sc.style.transform=`perspective(900px) translateY(${eased}px) rotateX(${(p*4).toFixed(2)}deg) scale(${1-p*.05})`;
+  if(hint){hint.style.height=Math.round(eased)+'px';hint.style.opacity=String(Math.min(1,d/50));const l=lvl(d);hint.classList.toggle('ready',l>0);if(hint._l!==l){hint._l=l;hintTxt(l);if(l>0&&window.hap)hap(10)}}
  },{passive:false});
  const end=()=>{
   if(!sw||!sw.on){sw=null;return}
@@ -2850,7 +2871,7 @@ function dbToFull(b){
   let L=lvl(s.d);if(!L&&s.v>.7&&s.d>40)L=1;const a=ancs(),par=L?S.nodes[a[L-1]]:null;
   if(par){
    sc.style.transition='transform .2s cubic-bezier(.5,0,1,.6),opacity .2s';sc.style.transform=`translateY(${innerHeight}px) scale(.92)`;sc.style.opacity='0';
-   setTimeout(()=>{go(par.id);sc.style.transition='none';sc.style.transform='';sc.style.opacity='';sc.classList.remove('swiping');sc.classList.add('pgin');if(hint){hint.remove();hint=null}setTimeout(()=>sc.classList.remove('pgin'),340)},200);
+   setTimeout(()=>{go(par.id);sc.style.transition='none';sc.style.transformOrigin='';sc.style.transform='';sc.style.opacity='';sc.classList.remove('swiping');sc.classList.add('pgin');if(hint){hint.remove();hint=null}setTimeout(()=>sc.classList.remove('pgin'),340)},200);
   }else reset(true);
  };
  sc.addEventListener('touchend',end);sc.addEventListener('touchcancel',()=>{if(window.ladder)ladder.cancel();if(sw&&sw.on){sw=null;reset(true)}else sw=null});
@@ -3724,6 +3745,7 @@ async function receiveMsg(str){
   return openSheet(`<h3>Received ${files.length} file${files.length>1?'s':''}</h3>${who}${filesHtml(files)}<p class="hint">Nothing is opened or imported. Tap the arrow to save a file, or add them to a page.</p><div class="btnrow"><button class="btn" data-qr="close">Close</button><button class="btn" data-qr="picspage">Add to a page</button></div>`);
  }
  if(o.t==='img'&&window.__imgRecv)return window.__imgRecv(r,o,who,from,known);
+ if(o.t==='syncpair'&&window.__syncPairRecv)return window.__syncPairRecv(r,o,who,from,known);
  if(o.t==='preset'&&window.__presetRecv)return window.__presetRecv(r,o,who,from,known);
  if(o.t==='fpart'&&window.__fpartRecv)return window.__fpartRecv(r,o,who,from,known);
  openSheet(`<h3>Unsupported code</h3><p class="hint">This code comes from a newer version. Nothing was imported.</p><div class="btnrow"><button class="btn pri" data-qr="close">Close</button></div>`);
@@ -5729,10 +5751,11 @@ async function sendConn(fl){
   {id:'folder',label:'New folder',icon:'folder',via:'sFolder'},
   {id:'paper',label:'Paper',icon:'pal',via:'sPaper'},
   {id:'broadcast',label:'Broadcast',icon:'scan',run:()=>{closeSide();bcast()}},
-  {id:'sstv',label:'SSTV',icon:'recv',run:()=>{closeSide();window.__sstv&&window.__sstv.open()}}
+  {id:'sstv',label:'SSTV',icon:'recv',run:()=>{closeSide();window.__sstv&&window.__sstv.open()}},
+  {id:'sync',label:'Sync',icon:'sync',run:()=>{closeSide();window.__sync&&window.__sync.open()}}
  ];
  const BYID={};REG.forEach(t=>BYID[t.id]=t);
- const DEFAULT=['home','search','scan','send','connect','today','folder','paper','all','canvas','listen','newpage','broadcast','sstv']; /* Backups and Trash stay at the bottom of the panel */
+ const DEFAULT=['home','search','scan','send','connect','today','folder','paper','all','canvas','listen','newpage','broadcast','sstv','sync']; /* Backups and Trash stay at the bottom of the panel */
  let more=false,edit=false,target=null;
  /* the first SHOWN entries are slots (a slot can be empty, null); the rest are hidden tiles */
  const order=()=>{
@@ -6781,6 +6804,306 @@ figure{margin:6pt 0}img{max-width:100%;height:auto}figcaption{font:${(fs*.8).toF
   else if(k==='titles')PT.titles=t.checked;else if(k==='dates')PT.dates=t.checked;
  });
 })();
+
+/* Mailbox sync: your notes, encrypted on this device, kept in one file in YOUR private GitHub repo. Every paired device
+   reads and writes that file and merges (nothing is overwritten blindly). Pair once with a QR or a code. */
+(function(){
+ const REPO_RE=/^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/,FILE='margin-mailbox.json',IMGMAX=3e6,TOMB_DAYS=90;
+ let cfg=null,base=null,running=false,again=false,pollT=0,syncT=0,etag='',st={last:0,err:'',busy:false,note:''};
+ const hash=s=>{let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (4294967296*(2097151&h2)+(h1>>>0)).toString(36)};
+ const body=n=>{const o={};Object.keys(n).sort().forEach(k=>{if(k!=='kids'&&k!=='open'&&k!=='t')o[k]=n[k]});return o};
+ const nh=n=>hash(JSON.stringify(body(n))),kh=a=>hash(JSON.stringify(a||[]));
+ const saveCfg=()=>idbSet('sync-cfg',cfg?JSON.stringify(cfg):'');
+ const saveBase=()=>idbSet('sync-base',JSON.stringify(base||{}));
+ async function loadAll(){
+  try{const c=await idbGet('sync-cfg');cfg=c?JSON.parse(c):null}catch(e){cfg=null}
+  try{const b=await idbGet('sync-base');base=b?JSON.parse(b):{}}catch(e){base={}}
+  if(!base.n)base={n:{},img:[],tomb:{},sha:'',last:0};
+  st.last=base.last||0;
+ }
+ /* ---- crypto ---- */
+ const keyOf=async k=>crypto.subtle.importKey('raw',unb64u(k),'AES-GCM',false,['encrypt','decrypt']);
+ async function gz(u8,dir){if(typeof CompressionStream==='undefined')return null;const cs=dir?new CompressionStream('gzip'):new DecompressionStream('gzip');
+  const w=cs.writable.getWriter();w.write(u8);w.close();return new Uint8Array(await new Response(cs.readable).arrayBuffer())}
+ async function enc(u8){
+  let z=0,d=u8;try{const g=await gz(u8,true);if(g&&g.length<u8.length){d=g;z=1}}catch(e){}
+  const iv=crypto.getRandomValues(new Uint8Array(12)),k=await keyOf(cfg.key);
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},k,d));
+  const o=new Uint8Array(1+12+ct.length);o[0]=z;o.set(iv,1);o.set(ct,13);return b64u(o);
+ }
+ async function dec(s){
+  const u=unb64u(s),z=u[0],iv=u.subarray(1,13),k=await keyOf(cfg.key);
+  let d=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},k,u.subarray(13)));
+  if(z===1)d=await gz(d,false);return d;
+ }
+ const wrap=s=>JSON.stringify({app:'margin-notes',v:1,d:s});
+ /* ---- GitHub ---- */
+ const api=p=>'https://api.github.com/repos/'+cfg.repo+p;
+ const hd=(x)=>Object.assign({Authorization:'Bearer '+cfg.tok,Accept:'application/vnd.github+json'},x||{});
+ const b64s=u8=>{let s='';for(let i=0;i<u8.length;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));return btoa(s)};
+ const utf=s=>new TextEncoder().encode(s);
+ async function gget(path,etg){
+  const r=await fetch(api('/contents/'+path),{headers:hd(etg?{'If-None-Match':etg}:{}),cache:'no-store'});
+  if(r.status===304)return {same:true};
+  if(r.status===404)return null;
+  if(r.status===401||r.status===403){const e=new Error('auth');e.auth=r.status;throw e}
+  if(!r.ok)throw new Error('GitHub '+r.status);
+  const j=await r.json();let txt='';
+  if(j.content){txt=new TextDecoder().decode(Uint8Array.from(atob(j.content.replace(/\s/g,'')),c=>c.charCodeAt(0)))}
+  else{const rr=await fetch(api('/contents/'+path),{headers:hd({Accept:'application/vnd.github.raw+json'}),cache:'no-store'});if(!rr.ok)throw new Error('GitHub '+rr.status);txt=await rr.text()}
+  return {sha:j.sha,txt,etag:r.headers.get('etag')||''};
+ }
+ async function gput(path,txt,sha){
+  const r=await fetch(api('/contents/'+path),{method:'PUT',headers:hd({'Content-Type':'application/json'}),body:JSON.stringify(Object.assign({message:'Margin Notes sync',content:b64s(utf(txt))},sha?{sha}:{}))});
+  if(r.status===409||r.status===422){const e=new Error('conflict');e.conflict=true;throw e}
+  if(r.status===401||r.status===403||r.status===404){const e=new Error('auth');e.auth=r.status;throw e}
+  if(!r.ok)throw new Error('GitHub '+r.status);
+  const j=await r.json();return {sha:j.content&&j.content.sha,etag:r.headers.get('etag')||''};
+ }
+ /* ---- merge ---- */
+ const copyNode=n=>JSON.parse(JSON.stringify(n));
+ const busyEdit=()=>{const a=document.activeElement;return !!(a&&(a.isContentEditable||/^(INPUT|TEXTAREA)$/.test(a.tagName)))};
+ function merge(R){ /* R = {n:{id:{...node,kids}}, tomb:{id:ts}, img:[ids]} from remote or empty; returns merged state */
+  const L=S.nodes,B=base.n||{},RN=R.n||{},RT=R.tomb||{},tomb=Object.assign({},RT);
+  const M={},skip=new Set(),conflicts=[];let chLocal=0,chRemote=0;
+  const lockCur=busyEdit()?S.cur:null;
+  const ids=new Set([...Object.keys(L),...Object.keys(RN),...Object.keys(B)]);
+  ids.forEach(id=>{
+   const l=L[id],r=RN[id],b=B[id],hl=l?nh(l):null,hr=r?nh(r):null;
+   if(id==='root'){ /* Home is always kept; the newer title wins */
+    M[id]=l?l:copyNode(r);if(l&&r&&hl!==hr&&(r.t||0)>(l.t||0)){M[id]=Object.assign({},l,{title:r.title})}return}
+   if(r){ /* remote has it */
+    if(!l){
+     if(b){ /* we deleted it here */
+      if(hr===b.h){tomb[id]=Date.now();chRemote++}else{M[id]=copyNode(r);delete tomb[id];chLocal++}
+     }else{M[id]=copyNode(r);chLocal++}
+    }else if(hl===hr){M[id]=l}
+    else if(b&&hl===b.h){ /* only remote changed */
+     if(id===lockCur){skip.add(id);M[id]=l}else{const o=copyNode(r);o.open=l.open;M[id]=o;chLocal++}
+    }else if(b&&hr===b.h){M[id]=l;chRemote++}
+    else{ /* both changed: newer stays, the other is kept as a copy */
+     const rNew=(r.t||0)>(l.t||0);
+     if(id===lockCur){skip.add(id);M[id]=l}
+     else{
+      const win=rNew?copyNode(r):l,lose=rNew?l:r;win.open=l.open;M[id]=win;
+      if(l.kind==='page'&&JSON.stringify(l.blocks)!==JSON.stringify(r.blocks)){conflicts.push({from:id,node:copyNode(lose),parent:win.parent})}
+      if(rNew)chLocal++;else chRemote++;
+     }
+    }
+   }else{ /* remote lacks it */
+    if(RT[id]!=null&&l){ /* remote deleted it */
+     if(b&&hl===b.h&&id!==lockCur){chLocal++;return}
+     delete tomb[id];M[id]=l;chRemote++;
+    }else if(l){M[id]=l;chRemote++}
+   }
+  });
+  /* a node whose id has a tombstone and nothing else vanished above; drop old tombstones */
+  const cut=Date.now()-TOMB_DAYS*864e5;Object.keys(tomb).forEach(k=>{if(tomb[k]<cut||M[k])delete tomb[k]});
+  return {M,tomb,skip,conflicts,chLocal,chRemote,RN,B};
+ }
+ function finish(m,R){
+  const {M,conflicts,RN}=m,L=S.nodes;
+  conflicts.forEach(c=>{
+   const n=copyNode(c.node);n.id=uid();n.kids=[];n.title=(n.title||'Untitled')+' (other device)';n.t=Date.now();n.parent=M[c.parent]?c.parent:'root';M[n.id]=n;
+  });
+  /* parents that no longer exist -> Home */
+  Object.keys(M).forEach(id=>{if(id!=='root'&&!M[M[id].parent])M[id].parent='root'});
+  /* a node can't be its own ancestor */
+  Object.keys(M).forEach(id=>{let p=M[id].parent,g=0;while(p&&p!=='root'&&g++<500){if(p===id){M[id].parent='root';break}p=M[p]&&M[p].parent}});
+  /* kids order */
+  const kids={};Object.keys(M).forEach(id=>{kids[id]=[]});
+  Object.keys(M).forEach(id=>{if(id!=='root')kids[M[id].parent].push(id)});
+  const out={};
+  Object.keys(M).forEach(id=>{
+   const l=L[id],r=RN[id],b=m.B[id],want=new Set(kids[id]);let src;
+   if(l&&r){const rk=kh(r.kids),lk=kh(l.kids);src=(b&&rk!==b.k&&lk===b.k)?r.kids:(l.kids||[])}else src=(l||r||M[id]).kids||[];
+   const order=src.filter(k=>want.has(k)),seen=new Set(order);
+   kids[id].filter(k=>!seen.has(k)).sort((a,c)=>(M[a].c||0)-(M[c].c||0)).forEach(k=>order.push(k));
+   const n=M[id];out[id]=Object.assign(n,{kids:order});
+  });
+  return out;
+ }
+ async function pullImages(nodes,remoteImgs){
+  const need=new Set();Object.values(nodes).forEach(n=>(n.blocks||[]).forEach(b=>{if(b.type==='image'&&b.img&&!IMG[b.img]&&remoteImgs.includes(b.img))need.add(b.img)}));
+  let got=0;for(const id of need){try{const g=await gget('margin-img/'+id+'.json');if(g&&g.txt){const j=JSON.parse(g.txt);const d=await dec(j.d);await putImg(id,new TextDecoder().decode(d));got++}}catch(e){if(e.auth)throw e}}
+  return got;
+ }
+ async function pushImages(nodes,remoteImgs){
+  const have=new Set(remoteImgs);let n=0;const ids=new Set();
+  Object.values(nodes).forEach(x=>(x.blocks||[]).forEach(b=>{if(b.type==='image'&&b.img&&IMG[b.img])ids.add(b.img)}));
+  for(const id of ids){if(have.has(id))continue;const u=IMG[id];if(!u||u.length>IMGMAX){st.note='A picture over 3 MB was not synced';continue}
+   try{const s=await enc(utf(u));await gput('margin-img/'+id+'.json',wrap(s));have.add(id);n++}catch(e){if(e.auth)throw e;if(!e.conflict)throw e;have.add(id)}}
+  return [...have];
+ }
+ const SEEDT=['Home','Projects','Welcome to Margin Notes','App ideas','Journal'];
+ const pristine=()=>{const a=Object.values(S.nodes);return a.length===SEEDT.length&&a.every(n=>SEEDT.includes(n.title))&&a.every(n=>n.id==='root'||(n.t||0)-(n.c||0)<2500)};
+ /* ---- one sync pass ---- */
+ async function pass(){
+  const g=await gget(FILE,base.sha?etag:'');
+  if(g&&g.same){ /* remote unchanged since we last looked; only local edits can matter */
+   const dirty=Object.keys(S.nodes).some(id=>{const b=base.n[id];return !b||b.h!==nh(S.nodes[id])||b.k!==kh(S.nodes[id].kids)})||Object.keys(base.n).some(id=>!S.nodes[id]);
+   if(!dirty)return 'same';
+  }
+  const before=JSON.stringify(Object.keys(S.nodes).map(id=>[id,nh(S.nodes[id]),kh(S.nodes[id].kids)]).sort());
+  let R={n:{},tomb:{},img:[]},sha='',exists=!!g;
+  let seedGone=false;
+  if(g&&!g.same){
+   let o;try{o=JSON.parse(g.txt)}catch(e){throw new Error('The mailbox file is not readable')}
+   try{o=JSON.parse(new TextDecoder().decode(await dec(o.d)))}catch(e){const er=new Error('key');er.key=1;throw er}
+   R={n:o.n||{},tomb:o.tomb||{},img:o.img||[]};sha=g.sha;etag=g.etag||'';
+  }else if(g&&g.same){ /* we need the remote content to merge; refetch without the conditional header */
+   const g2=await gget(FILE,'');exists=!!g2;
+   if(g2){let o=JSON.parse(g2.txt);
+   try{o=JSON.parse(new TextDecoder().decode(await dec(o.d)))}catch(e){const er=new Error('key');er.key=1;throw er}
+   R={n:o.n||{},tomb:o.tomb||{},img:o.img||[]};sha=g2.sha;etag=g2.etag||''}
+  }
+  /* a device that is still showing only the starter notes takes the mailbox as it is, instead of adding a second copy of them */
+  if(exists&&!base.last&&Object.keys(R.n).length>1&&pristine()){Object.keys(S.nodes).forEach(id=>{if(id!=='root')delete S.nodes[id]});S.nodes.root.kids=[];seedGone=true}
+  const m=merge(R);
+  const out=finish(m,R);
+  /* images */
+  let imgs=R.img||[];
+  const got=await pullImages(out,imgs);
+  imgs=await pushImages(out,imgs);
+  /* skipped nodes (being typed in) stay as the remote has them, so nothing is lost either way */
+  const rec={};Object.keys(out).forEach(id=>{rec[id]=m.skip.has(id)&&R.n[id]?R.n[id]:copyNode(out[id])});
+  const same=Object.keys(rec).length===Object.keys(R.n).length&&Object.keys(rec).every(id=>R.n[id]&&nh(R.n[id])===nh(rec[id])&&kh(R.n[id].kids)===kh(rec[id].kids))
+   &&JSON.stringify(Object.keys(m.tomb).sort())===JSON.stringify(Object.keys(R.tomb).sort())&&imgs.length===(R.img||[]).length&&exists;
+  /* write local */
+  const nn={};Object.keys(out).forEach(id=>{nn[id]=out[id]});
+  const goneIds=Object.keys(S.nodes).filter(id=>!nn[id]);
+  if(goneIds.length){ /* remote deleted these: they go to Trash so they can still be brought back */
+   const goneSet=new Set(goneIds);goneIds.forEach(id=>{const n=S.nodes[id];if(!n||!S.nodes[n.parent]||goneSet.has(n.parent))return;const p=S.nodes[n.parent];
+    const pack={};[id].concat(descendants(id)).forEach(k=>{if(!nn[k])pack[k]=S.nodes[k]});
+    (S.trash=S.trash||[]).unshift({id,t:Date.now(),parent:n.parent,at:Math.max(0,p.kids.indexOf(id)),nodes:pack,links:[]})});
+  }
+  S.nodes=nn;
+  Object.values(S.nodes).forEach(x=>{if(x.blocks)x.blocks=x.blocks.filter(b=>!(b.type==='page'&&b.ref&&!S.nodes[b.ref]))});
+  S.pins=(S.pins||[]).filter(x=>S.nodes[x]);if(Array.isArray(S.rec))S.rec=S.rec.filter(x=>!x||S.nodes[x.id||x]);
+  if(!S.nodes[S.cur])S.cur='root';
+  const after=JSON.stringify(Object.keys(S.nodes).map(id=>[id,nh(S.nodes[id]),kh(S.nodes[id].kids)]).sort());
+  const localChanged=before!==after||got>0;
+  /* write remote */
+  let pushed=false;
+  if(!same){
+   const payload={n:rec,tomb:m.tomb,img:imgs,from:devName(),at:Date.now()};
+   const s=await enc(utf(JSON.stringify(payload)));
+   const r=await gput(FILE,wrap(s),sha);sha=r.sha||sha;etag='';pushed=true;
+  }else if(g&&!g.same){sha=g.sha}
+  /* remember what we agreed on */
+  const bn={};Object.keys(rec).forEach(id=>{
+   if(m.skip.has(id)&&base.n[id]){bn[id]=base.n[id];return}
+   const n=out[id];bn[id]={h:nh(rec[id]),k:kh(rec[id].kids)}});
+  base={n:bn,img:imgs,tomb:m.tomb,sha,last:Date.now()};st.last=base.last;await saveBase();
+  if(localChanged){save();flush();try{if(busyEdit())renderSide();else render()}catch(e){}}
+  return pushed||localChanged?'changed':'same';
+ }
+ async function run(why){
+  if(!cfg)return;
+  if(running){again=true;return}
+  running=true;st.busy=true;st.err='';upd();
+  try{
+   for(let i=0;i<4;i++){
+    try{const r=await pass();st.err='';st.note=st.note||'';break}
+    catch(e){if(e.conflict&&i<3){etag='';continue}throw e}
+   }
+  }catch(e){
+   st.err=e.auth?(e.auth===404?'GitHub could not find the repo or the token has no access to it.':'GitHub refused the token. It may have expired or lacks Contents: Read and write.'):e.key?'This mailbox was made with a different key. Pair this device again.':(e.message==='Failed to fetch'?'Offline. Will retry.':String(e.message||e).slice(0,120));
+  }
+  running=false;st.busy=false;upd();
+  if(again){again=false;clearTimeout(syncT);syncT=setTimeout(()=>run('again'),1500)}
+ }
+ const kick=(ms)=>{if(!cfg)return;clearTimeout(syncT);syncT=setTimeout(()=>run('kick'),ms==null?6000:ms)};
+ function startPoll(){clearInterval(pollT);if(cfg)pollT=setInterval(()=>{if(!document.hidden)run('poll')},45000)}
+ /* ---- UI ---- */
+ const label=()=>!cfg?'':st.busy?'Syncing…':st.err?'Needs attention':st.last?'Synced '+ago(st.last)+(ago(st.last)==='now'?'':' ago'):'Not synced yet';
+ function upd(){const b=document.querySelector('#sSyncLbl');if(b)b.textContent=label();const sh=document.querySelector('#synsheet');if(sh&&cfg)open(true)}
+ function open(keep){
+  if(!cfg){
+   return openSheet(`<div id="synsheet"><h3>Sync between devices</h3>
+   <p class="hint">Your notes are encrypted on this device and kept in one file inside <b>your own private GitHub repo</b>. Each phone or computer you pair reads and writes that file and merges the changes. Nobody else can read it, and there is no server of ours.</p>
+   <div class="hint" style="margin:6px 0"><b>On a second device?</b> Skip this, set up on the first one, then use <i>Add a device</i> there.</div>
+   <input class="inp" id="synrepo" placeholder="Your repo, like yourname/my-notes-sync" autocapitalize="off" autocorrect="off" spellcheck="false" style="margin-bottom:8px">
+   <input class="inp" id="syntok" type="password" placeholder="GitHub token (starts with github_pat_)" autocomplete="off" style="margin-bottom:8px">
+   <details class="hint" style="margin-bottom:6px"><summary>How do I get these?</summary><ol style="margin:6px 0 0 18px;padding:0"><li>On GitHub, make a new <b>private</b> repository (any name, empty is fine).</li><li>Settings → Developer settings → Fine-grained tokens → Generate new token.</li><li>Pick <b>Only select repositories</b> and choose that repo. Under Permissions set <b>Contents: Read and write</b>.</li><li>Paste the repo name and the token here.</li></ol></details>
+   <p class="hint" id="synmsg" style="color:var(--accent)"></p>
+   <div class="btnrow"><button class="btn" data-syn="close">Cancel</button><button class="btn" data-syn="paste">I have a code</button><button class="btn pri" data-syn="setup">Set up</button></div></div>`);
+  }
+  openSheet(`<div id="synsheet"><h3>Sync</h3>
+   <div class="qrwho ${st.err?'new':'ok'}"><b>${esc(cfg.repo)}</b><span>${st.err?esc(st.err):esc(label())}</span></div>
+   ${st.note?`<p class="hint">${esc(st.note)}</p>`:''}
+   <p class="hint">Changes sync a few seconds after you stop typing, when you open the app, and every minute or so while it is open. If two devices change the same page, the newer one stays and the other is kept as a copy called “(other device)”.</p>
+   <p class="hint">Not synced yet: file attachments, settings, and pictures over 3 MB.</p>
+   <div class="btnrow"><button class="btn pri" data-syn="now">${st.busy?'Syncing…':'Sync now'}</button><button class="btn" data-syn="add">Add a device</button></div>
+   <div class="btnrow"><button class="btn bad" data-syn="off">Turn off on this device</button><button class="btn" data-syn="close">Close</button></div></div>`);
+ }
+ async function setup(){
+  const repo=($('#synrepo').value||'').trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/$/,''),tok=($('#syntok').value||'').trim(),msg=$('#synmsg');
+  if(!REPO_RE.test(repo)){msg.textContent='Enter the repo as owner/name.';return}
+  if(tok.length<20){msg.textContent='Paste the token here.';return}
+  msg.style.color='var(--muted)';msg.textContent='Checking…';
+  const key=b64u(crypto.getRandomValues(new Uint8Array(32)));
+  const old=cfg;cfg={repo,tok,key};
+  try{
+   const r=await fetch(api(''),{headers:hd(),cache:'no-store'});
+   if(r.status===401||r.status===403||r.status===404){cfg=old;msg.style.color='var(--accent)';msg.textContent=r.status===404?'That repo was not found, or the token is not allowed to see it.':'GitHub refused that token.';return}
+   if(!r.ok)throw new Error('GitHub '+r.status);
+   const j=await r.json();
+   if(j.permissions&&j.permissions.push===false){cfg=old;msg.style.color='var(--accent)';msg.textContent='The token can only read this repo. Give it Contents: Read and write.';return}
+   const ex=await gget(FILE,'');
+   if(ex){cfg=old;msg.style.color='var(--accent)';msg.textContent='This repo already holds a mailbox. To use it on this device, pair from the device that made it (Sync → Add a device).';return}
+   base={n:{},img:[],tomb:{},sha:'',last:0};etag='';await saveBase();await saveCfg();
+   st.err='';st.note=j.private===false?'Warning: this repo is public. Your notes are encrypted, but a private repo is safer.':'';
+   startPoll();run('setup');open();toast('Sync is on');
+  }catch(e){cfg=old;msg.style.color='var(--accent)';msg.textContent=e.message==='Failed to fetch'?'Could not reach GitHub. Check your connection.':String(e.message||e).slice(0,100)}
+ }
+ const pairObj=()=>({t:'syncpair',n:devName(),ts:Date.now(),repo:cfg.repo,tok:cfg.tok,key:cfg.key});
+ async function copyCode(){try{await navigator.clipboard.writeText(await sealMsg(pairObj()));toast('Code copied. Paste it on your other device.')}catch(e){toast('Could not copy')}}
+ async function addDevice(){
+  if(!cfg)return;
+  try{await showQR('Add a device',pairObj(),'On the other device: Home ⋯ → Scan QR code. This code contains your sync key and token, so only show it to your own device.');
+   const br=document.querySelector('#sheet .btnrow');if(br){const c=document.createElement('button');c.className='btn';c.dataset.syn='copycode';c.textContent='Copy code';br.insertBefore(c,br.firstChild)}}catch(e){toast('Could not make a QR code')}
+ }
+ let got=null;
+ window.__syncPairRecv=(r,o,who,from,known)=>{
+  const repo=sstr(o.repo,201),tok=sstr(o.tok,255),key=sstr(o.key,60);
+  if(!REPO_RE.test(repo)||tok.length<20||!/^[A-Za-z0-9_-]{43}$/.test(key))return openSheet(`<h3>Could not use this code</h3><p class="hint">The sync details in it are not valid.</p><div class="btnrow"><button class="btn pri" data-qr="close">Close</button></div>`);
+  got={repo,tok,key};
+  openSheet(`<h3>Join sync?</h3>${who}<div class="qrprev"><b>${esc(repo)}</b><small>Sync setup from ${esc(from)}</small></div><p class="hint">This device will read and write the encrypted mailbox in that repo. Your notes here are not erased; they are merged with the ones there.${cfg?' This replaces the sync setup you have now.':''}</p><div class="btnrow"><button class="btn" data-syn="close">Cancel</button><button class="btn pri" data-syn="join">Join</button></div>`);
+ };
+ async function join(){
+  if(!got)return;cfg=got;got=null;base={n:{},img:[],tomb:{},sha:'',last:0};etag='';st.err='';st.note='';
+  await saveBase();await saveCfg();startPoll();closeSheet();toast('Sync is on');run('join');
+ }
+ function off(){openSheet(`<h3>Turn sync off?</h3><p class="hint">Your notes on this device stay. The mailbox in GitHub is left as it is, and other devices keep syncing.</p><div class="btnrow"><button class="btn" data-syn="close">Cancel</button><button class="btn bad" data-syn="offok">Turn off</button></div>`)}
+ async function off2(){
+  cfg=null;base={n:{},img:[],tomb:{},sha:'',last:0};etag='';clearInterval(pollT);await saveCfg();await saveBase();closeSheet();toast('Sync is off');try{renderSide()}catch(e){}
+ }
+ document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-syn]');if(!b)return;e.stopPropagation();const k=b.dataset.syn;
+  if(k==='close')closeSheet();
+  else if(k==='setup')setup();
+  else if(k==='now')run('now');
+  else if(k==='add')addDevice();
+  else if(k==='join')join();
+  else if(k==='off')off();
+  else if(k==='paste')openSheet(`<h3>Paste a sync code</h3><p class="hint">On your other device: Sync → Add a device, then copy the code (or scan the QR with Home ⋯ → Scan QR code).</p><textarea id="synpa" class="qrta" rows="4" placeholder="MN1.…"></textarea><div class="btnrow"><button class="btn" data-syn="close">Cancel</button><button class="btn pri" data-syn="usecode">Use code</button></div>`);
+  else if(k==='usecode'){const t=($('#synpa').value||'').trim();if(t)receiveMsg(t)}
+  else if(k==='offok')off2()
+  else if(k==='copycode')copyCode()
+ },true);
+ document.addEventListener('visibilitychange',()=>{if(!cfg)return;if(document.hidden)run('hide');else kick(800)});
+ window.addEventListener('online',()=>kick(1000));
+ /* sync after edits settle */
+ const _save=save;
+ if(typeof save==='function'){try{window.__syncKick=()=>kick(6000)}catch(e){}}
+ let lastSaved=0;setInterval(()=>{if(cfg&&S.saved&&S.saved!==lastSaved){lastSaved=S.saved;if(!running)kick(5000)}},2500);
+ window.__sync={open:()=>open(),run:why=>run(why||'x'),cfg:()=>cfg,state:()=>Object.assign({},st),setCfg:async c=>{cfg=c;base={n:{},img:[],tomb:{},sha:'',last:0};await saveBase();await saveCfg();startPoll()},base:()=>base,label};
+ loadAll().then(()=>{if(cfg){startPoll();kick(2500)}});
+})();
+
 
 /* Connect: a QR (or pasted code) sets up a direct, encrypted device-to-device link; then pages and vaults go over it */
 (function(){
