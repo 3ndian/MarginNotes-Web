@@ -3945,7 +3945,7 @@ async function receiveMsg(str){
   const files=cleanAnyFiles(o.files);QP={kind:'files',k:r.k,name:from,files};
   if(!files.length)return openSheet(`<h3>No usable files</h3>${who}<p class="hint">Nothing in this code could be accepted. Only PDFs, text, office documents, EPUBs and pictures are taken.</p><div class="btnrow"><button class="btn pri" data-qr="close">Close</button></div>`);
   const pics=files.some(f=>f.m.startsWith('image/'));
-  return openSheet(`<h3>Received ${files.length} file${files.length>1?'s':''}</h3>${who}${filesHtml(files)}<p class="hint">Nothing is opened or imported. Tap the arrow to save a file, or add them to a page.</p><div class="btnrow"><button class="btn" data-qr="close">Close</button><button class="btn" data-qr="picspage">Add to a page</button></div>`);
+  return openSheet(`<h3>Received ${files.length} file${files.length>1?'s':''}</h3>${who}${filesHtml(files)}<p class="hint">Nothing is opened or imported. Tap the arrow to save a file, or add them to a page.</p><div class="btnrow"><button class="btn" data-qr="close">Close</button>${files.some(f=>window.__canKeep&&window.__canKeep(f))?'<button class="btn" data-qk="keep">Keep in this page</button>':''}<button class="btn" data-qr="picspage">Add to a page</button></div>`);
  }
  if(o.t==='img'&&window.__imgRecv)return window.__imgRecv(r,o,who,from,known);
  if(o.t==='syncpair'&&window.__syncPairRecv)return window.__syncPairRecv(r,o,who,from,known);
@@ -4354,7 +4354,7 @@ async function sealCached(key,make){const c=sealCache[key];if(c&&Date.now()-c.t<
 let strm=null;
 async function streamQR(title,u8,note){
  const dense=!!(S.set&&S.set.qrDense);const ctx=await fxPrepare(u8,dense?600:300);clearTimeout(strm&&strm.timer);
- strm={ctx,idx:0,fps:dense?6:8,timer:null,args:[title,u8,note]};const S0=strm;
+ strm={ctx,idx:0,fps:dense?12:15,timer:null,args:[title,u8,note]};const S0=strm;
  const single=('MN1.'+flagCh(u8)+'.'+b64u(u8.subarray(1)));
  if(single.length<=640){openSheet(`<h3>${esc(title)}</h3><div class="qrbox" id="qrbox"></div><p class="hint" style="text-align:center">${esc(note||'')}</p><div class="btnrow"><button class="btn pri" data-qr="close">Done</button></div>`);$('#qrbox').appendChild(qrCanvas(single,340));return}
  openSheet(`<h3>${esc(title)}</h3><div class="qrbox" id="qrbox"></div><p class="hint" id="qrnote" style="text-align:center"></p>
@@ -5684,6 +5684,18 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
   QP={kind:'page',k:QP.k,name:QP.name,title:(imgs.every(f=>f.m.startsWith('image/'))?'Pictures from ':'Files from ')+QP.name,blocks:imgs.map(f=>f.m.startsWith('image/')?blk('image','',0,{img:f.id,w:100,al:'c',cap:f.name.replace(/\.[^.]+$/,'')}):blk('file','',0,{fid:f.id,name:f.name,size:f.size,mime:f.m})),files:imgs};
   importPage();
  });
+ /* Keep in this page: attach what arrived to the page that is open */
+ document.addEventListener('click',async e=>{
+  const k=e.target.closest('#sheet [data-qk]');if(!k||!QP||!QP.files)return;e.preventDefault();e.stopPropagation();
+  const ck=window.__canKeep,fl=QP.files.filter(f=>ck&&ck(f)),skipped=QP.files.length-fl.length;
+  if(!fl.length)return toast('Those cannot be kept in a page. Tap the arrow to save them instead.');
+  closeSheet();toast('Adding to the page…');
+  let n=0;const docs=[];
+  for(const f of fl){try{const bl=f.blob||await (await fetch(f.url)).blob(),file=new File([bl],f.name,{type:f.m});
+   if(f.m.startsWith('image/')){if(window.__keepImage){await window.__keepImage(file);n++}}else docs.push(file)}catch(er){}}
+  if(docs.length&&window.__keepDocs){try{n+=await window.__keepDocs(docs)}catch(er){}}
+  toast(n?n+' kept in this page'+(skipped?'. '+skipped+' could not be kept: save those with the arrow.':''):'Could not add those to the page');
+ },true);
 })();
 /* Attachments: a PDF (or another document) can sit inside a page. PDFs and text open in the app; every file can be saved or sent by QR. */
 (function(){
@@ -5759,6 +5771,9 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
   normalize();renderBlocks();touch();
   toast(infos.length>1?infos.length+' files attached':'Attached');
  }
+ /* received files can be kept inside the open page */
+ window.__canKeep=f=>{if(!f||!(f.size>0)||f.size>MAXDOC)return false;const e=extOf(f.name);return !!FT[e]&&(String(FT[e]).startsWith('image/')||DOC_EXT.includes(e))};
+ window.__keepDocs=async files=>{const last=B[B.length-1];if(!last)return 0;const n0=B.filter(b=>b.type==='file'&&b.fid).length;await attach(last.id,files,false);return B.filter(b=>b.type==='file'&&b.fid).length-n0};
  function pickFor(bid,replace){
   const inp=document.createElement('input');inp.type='file';inp.accept=ACCEPT;inp.multiple=!replace;inp.style.display='none';document.body.appendChild(inp);
   inp.onchange=async()=>{const fl=[...inp.files];inp.remove();if(fl.length)attach(bid,fl,replace)};
@@ -6094,9 +6109,9 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
   const qr=btn('sfqr'),pt=btn('sfparts'),cn=btn('sfconn');if(!qr)return;
   const fits=r<=QR_CAP,np=chosen().reduce((a,f)=>a+Math.max(1,Math.ceil(f.u8.length/PART)),0);
   qr.disabled=!n||!fits;small('sfqr').textContent=!n?'':fits?'About '+est(r)+'. The other phone scans the codes.':'Too big for one go. Use parts, QR stream or Connect.';
-  pt.hidden=fits;pt.disabled=!n||r>MAXPARTS;small('sfparts').textContent=r>MAXPARTS?'Over 8 MB. Use QR stream or Connect.':np+' parts, about '+est(r)+' in all. The other phone scans one part at a time.';
+  pt.hidden=fits;pt.disabled=!n||r>MAXPARTS;small('sfparts').textContent=r>MAXPARTS?'Over 8 MB. QR stream has no size limit.':np+' parts, about '+est(r)+' in all. The other phone scans one part at a time.';
   const sd=btn('sfsound'),sc=window.__soundCap&&window.__soundCap();if(sd){if(!sc){sd.hidden=true}else{const est2=Math.ceil(r*1.37/sc.pk)*sc.sec,mins=est2<90?Math.max(1,Math.round(est2))+' seconds':Math.round(est2/60)+' minutes',okS=n&&r*1.37<sc.max*0.9;sd.disabled=!okS;small('sfsound').textContent=!n?'':okS?'About '+mins+'. The other device taps Listen. Tiny files only.':'Too big for sound (about '+Math.floor(sc.max*0.9/1.37/1000)+' KB at most). Use QR or Connect.'}}
-  const ss=btn('sfstream');if(ss){const SZ=r,tt=SZ/(600*8);ss.disabled=n!==1||SZ>80000000||!window.__qrStream;small('sfstream').textContent=!n?'':n!==1?'Pick one file to stream it.':SZ>80000000?'Over 80 MB. Use Connect.':'Up to 80 MB, no repair codes. About '+(tt<90?Math.round(tt)+' seconds':tt<5400?Math.round(tt/60)+' minutes':(Math.round(tt/360)/10)+' hours')+' at Dense, 8 a second.'}
+  const ss=btn('sfstream');if(ss){const SZ=r,tt=SZ/(600*15)*1.12,TL=tt<90?Math.round(tt)+' seconds':tt<5400?Math.round(tt/60)+' minutes':(Math.round(tt/360)/10)+' hours',GB=1073741824;ss.disabled=!n||SZ>GB||!window.__qrStream;small('sfstream').textContent=!n?'':SZ>GB?'Over 1 GB, more than a phone can hold while it receives. Send part of it, or use Connect.':(n>1?'Packs the '+n+' files into one stream. ':'Any size. ')+'About '+TL+' at Dense, 15 a second, with repair codes.'+(tt>1800?' Keep both phones awake and charging.':'')}
   const on=linked(),syo=!!(window.__sync&&window.__sync.cfg&&window.__sync.cfg()),bg=chosen().some(f=>f.big);cn.disabled=!n;small('sfconn').textContent=on?(bg?'Direct link is up. Big files stream across with a progress bar. The other device is asked first.':'Direct link is up. Sends it straight across.'):syo?(bg||r>MAXPARTS?'Big files need a direct link. I will set one up first (same Wi-Fi).':'No QR needed. Arrives in a few seconds.'):'Not paired yet. Tap to pair a device first.';
  }
  const msgOf=fl=>({t:'files',n:devName(),ts:Date.now(),files:fl.map(f=>({name:f.name,m:f.m,d:b64u(f.u8)}))});
@@ -6125,7 +6140,7 @@ window.__fx={shareNodeQR:(i)=>shareNodeQR(i),qrFeed:(x)=>qrFeed(x),qrCanvas,seal
   if(k==='add'){pick();return}
   const fl=chosen();if(!fl.length)return;
   if(k==='qr'){if(raw()>QR_CAP)return;SF=null;try{await showQR(fl.length>1?'Send '+fl.length+' files':'Send “'+fl[0].name+'”',msgOf(fl),'On the other device: Scan. It lists the files so they can save each one.')}catch(er){toast('Could not make the codes')}return}
-  if(k==='stream'){SF=null;try{await window.__qrStream.start(fl[0])}catch(er){toast('Could not start the stream')}return}
+  if(k==='stream'){SF=null;try{await window.__qrStream.start(fl)}catch(er){toast('Could not start the stream')}return}
   if(k==='parts'){SF=null;SP={g:uid(),fl,plan:planOf(fl),j:0};sendPart(0);return}
   if(k==='sound'){SF=null;try{await window.__sendSound(fl.length>1?fl.length+' files':fl[0].name,msgOf(fl))}catch(er){toast('Could not send by sound')}return}
   if(k==='conn'){
@@ -6176,7 +6191,7 @@ async function sendConn(fl){
   const files=cleanAnyFiles(out);
   if(!files.length||files.length!==out.length)return bad('Some files were not accepted','Their type or contents did not check out, so nothing was kept.');
   QP={kind:'files',k:r.k,name:from,files};
-  return openSheet(`<h3>Received ${files.length} file${files.length>1?'s':''}</h3>${who}${filesHtml(files)}<p class="hint">All ${tp} parts arrived. Nothing is opened or imported. Tap the arrow to save a file, or add it to a page.</p><div class="btnrow"><button class="btn" data-qr="close">Close</button><button class="btn" data-qr="picspage">Add to a page</button></div>`);
+  return openSheet(`<h3>Received ${files.length} file${files.length>1?'s':''}</h3>${who}${filesHtml(files)}<p class="hint">All ${tp} parts arrived. Nothing is opened or imported. Tap the arrow to save a file, or add it to a page.</p><div class="btnrow"><button class="btn" data-qr="close">Close</button>${files.some(f=>window.__canKeep&&window.__canKeep(f))?'<button class="btn" data-qk="keep">Keep in this page</button>':''}<button class="btn" data-qr="picspage">Add to a page</button></div>`);
  };
  document.addEventListener('click',e=>{const m=e.target.closest('[data-fr="scan"]');if(!m)return;closeSheet();try{openScanner()}catch(er){}});
  window.__sendparts={planOf,partObj,get SP(){return SP},set SP(v){SP=v}};
@@ -7058,12 +7073,73 @@ async function sendConn(fl){
 
 /* QR stream: a big file sent as plain numbered pieces in a loop (no repair codes). The receiver shows which pieces it has. */
 (function(){
- const MAXS=80000000,FPSL=[1,2,3,4,5,6,8,10,12,15,20,24],SIZES=[[300,'Standard'],[600,'Dense'],[900,'Ultra']];
+ const MAXS=1073741824,KMAX=2200000,CH=1<<20,FPSL=[1,2,3,4,5,6,8,10,12,15,20,24],SIZES=[[300,'Standard'],[600,'Dense'],[900,'Ultra']];
  const CT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
- const crcT=u8=>{let c=-1;for(let i=0;i<u8.length;i++)c=CT[(c^u8[i])&255]^(c>>>8);return((c^-1)>>>0).toString(16).padStart(8,'0')};
  const fmtT=s=>{s=Math.max(0,Math.round(s));return s<90?s+' s':s<5400?Math.round(s/60)+' min':(Math.round(s/360)/10)+' h'};
  const kbs=n=>n<1024?Math.round(n)+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';
- const sha=async u8=>b64u(new Uint8Array(await crypto.subtle.digest('SHA-256',u8)));
+ const K256=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+ /* SHA-256 in plain JS, in slices so the screen keeps moving. Used for very big files, where the built-in one would need a second copy in memory. */
+ async function sha256Js(u8){
+  const H=new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]),w=new Uint32Array(64);
+  const blk=(src,o)=>{
+   for(let i=0;i<16;i++){const j=o+i*4;w[i]=(src[j]<<24)|(src[j+1]<<16)|(src[j+2]<<8)|src[j+3]}
+   for(let i=16;i<64;i++){const a=w[i-15],b=w[i-2];w[i]=(w[i-16]+(((a>>>7)|(a<<25))^((a>>>18)|(a<<14))^(a>>>3))+w[i-7]+(((b>>>17)|(b<<15))^((b>>>19)|(b<<13))^(b>>>10)))|0}
+   let a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+   for(let i=0;i<64;i++){const t1=(h+(((e>>>6)|(e<<26))^((e>>>11)|(e<<21))^((e>>>25)|(e<<7)))+((e&f)^(~e&g))+K256[i]+w[i])|0,t2=((((a>>>2)|(a<<30))^((a>>>13)|(a<<19))^((a>>>22)|(a<<10)))+((a&b)^(a&c)^(b&c)))|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0}
+   H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+  };
+  const n=u8.length,full=n-(n%64);let since=0;
+  for(let o=0;o<full;o+=64){blk(u8,o);if(++since>=524288){since=0;await new Promise(r=>setTimeout(r,0))}}
+  const tail=new Uint8Array(n%64<56?64:128);tail.set(u8.subarray(full));tail[n-full]=0x80;
+  const dv=new DataView(tail.buffer);dv.setUint32(tail.length-8,Math.floor(n/0x20000000));dv.setUint32(tail.length-4,(n<<3)>>>0);
+  for(let o=0;o<tail.length;o+=64)blk(tail,o);
+  const out=new Uint8Array(32),ov=new DataView(out.buffer);for(let i=0;i<8;i++)ov.setUint32(i*4,H[i]);return out;
+ }
+ const sha=async u8=>{if(u8.length<=134217728){try{return b64u(new Uint8Array(await crypto.subtle.digest('SHA-256',u8)))}catch(e){}}return b64u(await sha256Js(u8))};
+ const crcA=async u8=>{let c=-1;for(let i=0;i<u8.length;i++){c=CT[(c^u8[i])&255]^(c>>>8);if((i&0x3FFFFFF)===0x3FFFFFF)await new Promise(r=>setTimeout(r,0))}return((c^-1)>>>0).toString(16).padStart(8,'0')};
+
+  /* ---- repair codes: blocks of up to 224 data pieces plus parity pieces (about 1 in 9). Any 224 pieces of a block rebuild the block. ---- */
+ const D=224,pOf=d=>Math.max(1,Math.ceil(d*3/28));
+ const layout=K=>{const nb=Math.ceil(K/D),pOff=new Uint32Array(nb+1);for(let b=0;b<nb;b++)pOff[b+1]=pOff[b]+pOf(Math.min(D,K-b*D));return {nb,pOff,PT:pOff[nb]}};
+ const GE=new Uint8Array(512),GL=new Uint8Array(256);{let x=1;for(let i=0;i<255;i++){GE[i]=x;GL[x]=i;x<<=1;if(x&256)x^=0x11d}for(let i=255;i<512;i++)GE[i]=GE[i-255]}
+ const ginv=a=>GE[255-GL[a]],MTc=new Array(256);
+ const MT=c=>MTc[c]||(MTc[c]=(()=>{const t=new Uint8Array(256);if(c)for(let i=1;i<256;i++)t[i]=GE[GL[c]+GL[i]];return t})());
+ const cof=(j,i,d)=>ginv((d+j)^i);
+ /* the order frames go out in: 8 blocks at a time, piece by piece across them, so a burst of lost frames is spread thin over several blocks */
+ function buildOrd(K){
+  const L=layout(K),W=8,T=K+L.PT,ord=new Uint32Array(T);let n=0;
+  for(let g0=0;g0<L.nb;g0+=W){const g1=Math.min(L.nb,g0+W),nn=[];let mx=0;
+   for(let b=g0;b<g1;b++){const d=Math.min(D,K-b*D);nn.push(d+pOf(d));mx=Math.max(mx,d+pOf(d))}
+   for(let r=0;r<mx;r++)for(let b=g0;b<g1;b++)if(r<nn[b-g0])ord[n++]=b*256+r}
+  return {ord,T,L};
+ }
+ function parityOf(t,b,j){
+  const d=Math.min(D,t.K-b*D),B=t.B,out=new Uint8Array(B);
+  for(let i=0;i<d;i++){const a=(b*D+i)*B,n=Math.min(B,t.len-a);if(n<=0)break;const mt=MT(cof(j,i,d)),u=t.u8;for(let k=0;k<n;k++)out[k]^=mt[u[a+k]]}
+  return out;
+ }
+ /* rebuild the missing data pieces of block b from any mix of its data and parity pieces (needs at least as many pieces as the block has data) */
+ function decodeBlock(st,b){
+  const K=st.K,B=st.B,d=Math.min(D,K-b*D),p=pOf(d),po=K+st.L.pOff[b],buf=st.buf,have=st.have,miss=[];
+  for(let i=0;i<d;i++)if(!have[b*D+i])miss.push(i);
+  const m=miss.length;if(!m)return true;
+  const pj=[];for(let j=0;j<p&&pj.length<m;j++)if(have[po+j])pj.push(j);
+  if(pj.length<m)return false;
+  const rhs=[],co=[];
+  for(let s=0;s<m;s++){
+   const j=pj[s],row=buf.slice((po+j)*B,(po+j+1)*B);
+   for(let i=0;i<d;i++)if(have[b*D+i]){const mt=MT(cof(j,i,d)),a=(b*D+i)*B;for(let k=0;k<B;k++)row[k]^=mt[buf[a+k]]}
+   rhs.push(row);const cr=new Uint8Array(m);for(let t=0;t<m;t++)cr[t]=cof(j,miss[t],d);co.push(cr);
+  }
+  for(let c=0;c<m;c++){
+   let pv=-1;for(let r=c;r<m;r++)if(co[r][c]){pv=r;break}if(pv<0)return false;
+   if(pv!==c){let x=co[pv];co[pv]=co[c];co[c]=x;x=rhs[pv];rhs[pv]=rhs[c];rhs[c]=x}
+   const iv=ginv(co[c][c]);if(iv!==1){const mt=MT(iv);for(let t=0;t<m;t++)co[c][t]=mt[co[c][t]];for(let k=0;k<B;k++)rhs[c][k]=mt[rhs[c][k]]}
+   for(let r=0;r<m;r++){if(r===c)continue;const f=co[r][c];if(!f)continue;const mt=MT(f);for(let t=0;t<m;t++)co[r][t]^=mt[co[c][t]];for(let k=0;k<B;k++)rhs[r][k]^=mt[rhs[c][k]]}
+  }
+  for(let t=0;t<m;t++){const g=b*D+miss[t];buf.set(rhs[t],g*B);have[g]=1;{const a=g*B;st.dch.add(a>>>20);st.dch.add((a+B-1)>>>20);st.dirty=true}}
+  return true;
+ }
 
  /* ---------------- sender ---------------- */
  let TX=null;
@@ -7071,101 +7147,274 @@ async function sendConn(fl){
   const B=t.B,a=i*B,d=new Uint8Array(B);d.set(t.u8.subarray(a,Math.min(t.len,a+B)));
   const head=`MNS1|${t.tid}|${t.K}|${t.len}|${B}|${t.crc}|${i}|${b64u(d)}`;return head+'|'+fnv(head);
  }
+ function frame2(t,b,r){
+  const d=Math.min(D,t.K-b*D),B=t.B;let dat;
+  if(r<d){const a=(b*D+r)*B;dat=new Uint8Array(B);dat.set(t.u8.subarray(a,Math.min(t.len,a+B)))}else dat=parityOf(t,b,r-d);
+  const head=`MNS2|${t.tid}|${t.K}|${t.len}|${B}|${t.crc}|${b}|${r}|${b64u(dat)}`;return head+'|'+fnv(head);
+ }
  function nextFrame(t){
   const s=t.seq++;if(s%16===0)return t.hdr;
+  if(t.sub){const o=t.sub[t.sp];t.sp++;if(t.sp>=t.sub.length){t.sp=0;t.pass++}return t.v===2?frame2(t,o>>>8,o&255):dataFrame(t,o)}
+  if(t.v===2){const o=t.ord[t.pos];t.pos++;if(t.pos>=t.T){t.pos=0;t.pass++}return frame2(t,o>>>8,o&255)}
   const f=dataFrame(t,t.pos);t.pos++;if(t.pos>=t.K){t.pos=0;t.pass++}return f;
  }
- async function prep(name,m,u8,B){
-  const hashFull=await sha(u8),tid=hashFull.slice(0,6),crc=crcT(u8),K=Math.ceil(u8.length/B);
-  const hdr='MNS0|'+tid+'|'+await sealMsg({t:'sfile',n:devName(),ts:Date.now(),tid,name,m,size:u8.length,sha:hashFull});
-  return {name,m,u8,len:u8.length,B,K,tid,crc,hdr,pos:0,pass:1,seq:0,fps:8,paused:false,timer:null,drag:false};
+ async function prep(name,m,u8,B,bundle,cache,v){
+  v=v===1?1:2;
+  const c=cache||{},hashFull=c.hf||await sha(u8),tid=hashFull.slice(0,6),crc=c.crc||await crcA(u8),K=Math.ceil(u8.length/B);
+  const hdr='MNS0|'+tid+'|'+await sealMsg({t:'sfile',n:devName(),ts:Date.now(),tid,name,m,size:u8.length,sha:hashFull,bundle:bundle?1:0});
+  const o=v===2?buildOrd(K):null;
+  return {name,m,u8,len:u8.length,B,K,v,T:o?o.T:K,ord:o?o.ord:null,tid,crc,hf:hashFull,bundle,hdr,pos:0,pass:1,seq:0,fps:B>=900?12:15,paused:false,timer:null,drag:false};
  }
- async function start(f){
-  stop();let u8;
-  try{toast('Getting it ready…');u8=f.big?new Uint8Array(await f.big.arrayBuffer()):f.u8}catch(e){return toast('Could not read that file')}
-  if(!u8||!u8.length||u8.length>MAXS)return toast('That file is too big for this');
-  const B=(window.S&&0)||(S.set&&+S.set.qsB)||600;
-  TX=await prep(f.name,f.m,u8,B);TX.base={name:f.name,m:f.m,u8};drawTx();
+ /* one file goes as it is; several are packed into one stream: MNB1, a list of names and sizes, then the files back to back */
+ async function pack(list){
+  const man=list.map(f=>[f.name,f.big?f.big.size:f.u8.length]),mj=new TextEncoder().encode(JSON.stringify(man)),hd=new Uint8Array(8);
+  hd.set([77,78,66,49]);new DataView(hd.buffer).setUint32(4,mj.length,true);
+  return new Uint8Array(await new Blob([hd,mj,...list.map(f=>f.big||f.u8)]).arrayBuffer());
+ }
+ let WLK=null;
+ const wake=async on=>{try{if(on){if(navigator.wakeLock&&!WLK){WLK=await navigator.wakeLock.request('screen');WLK.addEventListener('release',()=>{WLK=null})}}else if(WLK){const w=WLK;WLK=null;await w.release()}}catch(e){}};
+ document.addEventListener('visibilitychange',()=>{if(TX&&document.visibilityState==='visible')wake(true)});
+ const fitB=(len,B)=>{while(Math.ceil(len/B)>KMAX&&B<1000)B=B<600?600:B<900?900:1000;return B};
+ async function start(x){
+  stop();const list=Array.isArray(x)?x.filter(Boolean):[x];if(!list.length)return;
+  const tot=list.reduce((a,f)=>a+(f.big?f.big.size:f.u8.length),0);
+  if(!tot)return toast('That file is empty');
+  if(tot>MAXS)return toast('Over 1 GB in total. Send part of it, or use Connect.');
+  let u8,name,m,bundle=false;
+  try{
+   toast('Getting it ready…');
+   if(list.length===1){const f=list[0];u8=f.big?new Uint8Array(await f.big.arrayBuffer()):f.u8;name=f.name;m=f.m}
+   else{u8=await pack(list);name=list.length+' files';m='application/octet-stream';bundle=true}
+  }catch(e){return toast('Could not read that. It may be more than this device can hold in memory.')}
+  const B=fitB(u8.length,(window.S&&0)||(S.set&&+S.set.qsB)||600);
+  try{TX=await prep(name,m,u8,B,bundle,null,(S.set&&S.set.qsRep===0)?1:2)}catch(e){return toast('Could not get that ready. Try fewer or smaller files.')}
+  wake(true);drawTx();
  }
  async function resize(B){
-  const t=TX;if(!t)return;clearTimeout(t.timer);S.set.qsB=B;save();const keep=t.fps;
-  TX=await prep(t.name,t.m,t.u8,B);TX.fps=keep;drawTx();
+  const t=TX;if(!t)return;
+  if(Math.ceil(t.len/B)>KMAX)return toast('That size would need too many pieces for a file this big.');
+  clearTimeout(t.timer);S.set.qsB=B;save();const keep=t.fps;
+  TX=await prep(t.name,t.m,t.u8,B,t.bundle,{hf:t.hf,crc:t.crc},t.v);TX.fps=keep;drawTx();
  }
- function stop(){if(TX){clearTimeout(TX.timer);TX=null}}
+ async function toggleRep(){
+  const t=TX;if(!t)return;clearTimeout(t.timer);const nv=t.v===2?1:2;S.set.qsRep=nv===2?1:0;save();const keep=t.fps;
+  TX=await prep(t.name,t.m,t.u8,t.B,t.bundle,{hf:t.hf,crc:t.crc},nv);TX.fps=keep;drawTx();
+ }
+ function stop(){if(TX){clearTimeout(TX.timer);TX=null}wake(false)}
+ const unitOf=(t,o)=>t.v===2?o>>>8:o;
+ function drawGrid(t){
+  const cv=$('#qsgrid');if(!cv)return;const units=t.v===2?Math.ceil(t.K/D):t.K,cl=gridDims(units);cv.width=360;cv.height=28;
+  const g=cv.getContext('2d'),nd=t.need&&t.need.length===cl.cells?t.need:null;
+  let cur=t.sub?t.sub[t.sp%t.sub.length]:(t.v===2?t.ord[Math.min(t.T-1,t.pos)]:t.pos);cur=Math.min(units-1,unitOf(t,cur));const cc=cellMap(units,cl.cells)[cur];
+  g.clearRect(0,0,360,28);let miss=0;
+  for(let c=0;c<cl.cells;c++){
+   const x=c*cl.cs;
+   g.fillStyle=!nd?'rgba(130,130,130,.55)':nd[c]?'rgba(235,90,70,.9)':'rgba(60,190,110,.9)';if(nd&&nd[c])miss++;
+   g.fillRect(x,0,Math.ceil(cl.cs),28);
+  }
+  g.fillStyle='#fff';g.fillRect(0,0,0,0);const mx=Math.min(358,cc*cl.cs);g.fillStyle='#000';g.fillRect(mx-1,0,4,28);g.fillStyle='#fff';g.fillRect(mx,0,2,28);
+  t.cl=cl;const h=$('#qsgh');if(h)h.textContent=nd?(miss?`Red: the other phone is missing these (${miss} of ${cl.cells} pieces). Green: they have them. The bar is what you are showing now.`:'They have every part.'):'Grey: not heard from the other phone yet. The bar is where you are now. Tap “Scan reply” after they tap “Show my progress”.';
+ }
+ function jumpCell(t,c){
+  const units=t.v===2?Math.ceil(t.K/D):t.K,cl=gridDims(units),[a,z]=unitRange(units,cl.cells,c);
+  const arr=t.sub||(t.v===2?t.ord:null);let i=-1;
+  if(arr){for(let j=0;j<arr.length;j++){const u=unitOf(t,arr[j]);if(u>=a&&u<z){i=j;break}}}else i=a;
+  if(i<0)return;if(t.sub)t.sp=i;else t.pos=i;t.seq=Math.max(1,t.seq);const p=$('#qspos');if(p)p.value=i;drawGrid(t);
+ }
+ document.addEventListener('click',e=>{const cv=e.target.closest&&e.target.closest('#qsgrid');if(!cv||!TX||!TX.cl)return;const r=cv.getBoundingClientRect(),cl=TX.cl,x=Math.floor((e.clientX-r.left)/r.width*cl.cols),y=Math.floor((e.clientY-r.top)/r.height*cl.rows),c=y*cl.cols+x;if(x>=0&&x<cl.cols&&c>=0&&c<cl.cells)jumpCell(TX,c)});
+ /* a reply from the receiver: from now on send only what they are missing */
+ function feedReply(txt){
+  const t=TX;if(!t)return false;const p=String(txt).split('|');if(p.length!==8||p[0]!=='MNR1')return false;
+  if(fnv(p.slice(0,7).join('|'))!==p[7])return false;
+  const units=t.v===2?Math.ceil(t.K/D):t.K;
+  if(p[1]!==t.tid||+p[2]!==t.B||+p[3]!==t.v||+p[4]!==units)return false;
+  const cl=gridDims(units);if(+p[5]!==cl.cells)return false;
+  let by;try{by=unb64u(p[6])}catch(e){return false}if(by.length!==Math.ceil(cl.cells/8))return false;
+  const need=new Uint8Array(cl.cells);let n=0;for(let c=0;c<cl.cells;c++)if(by[c>>3]>>(c&7)&1){need[c]=1;n++}
+  t.need=need;
+  if(!n){t.sub=null;toast('They have everything. Nothing more to send.')}
+  else{
+   const src=t.v===2?t.ord:null,out=[],cm=cellMap(units,cl.cells);
+   if(src){for(let j=0;j<src.length;j++){if(need[cm[src[j]>>>8]])out.push(src[j])}}
+   else{for(let u=0;u<units;u++)if(need[cm[u]])out.push(u)}
+   t.sub=Uint32Array.from(out);t.sp=0;
+   toast('Got it. Sending only what they are missing.');
+  }
+  try{closeScanner()}catch(e){}
+  const sl=$('#qspos');if(sl){sl.max=(t.sub?t.sub.length:t.T)-1;sl.value=0}const b=$('#qsall');if(b)b.hidden=!t.sub;drawGrid(t);
+  return true;
+ }
  function drawTx(){
   const t=TX;if(!t)return;
   openSheet(`<h3>Streaming “${esc(t.name)}”</h3><div class="qrbox" id="qsbox"></div><p class="hint" id="qsinfo" style="text-align:center"></p>
-  <input type="range" id="qspos" min="0" max="${t.K-1}" value="0" style="width:100%" aria-label="Position in the file">
-  <p class="hint" style="text-align:center;margin:0 0 6px">Drag the slider to jump to a spot the other phone missed.</p>
+  <canvas id="qsgrid" style="width:100%;height:28px;border-radius:4px;display:block;background:rgba(127,127,127,.18)"></canvas>
+  <p class="hint" id="qsgh" style="text-align:center;margin:4px 0 4px"></p>
+  <input type="range" id="qspos" min="0" max="${(t.sub?t.sub.length:t.T)-1}" value="0" style="width:100%" aria-label="Position in the file">
+  <p class="hint" style="text-align:center;margin:0 0 6px">Tap the strip above, or drag the slider, to jump to a spot the other phone missed.</p>
+  <div class="btnrow"><button class="btn" data-qx="scanr">Scan reply</button><button class="btn" data-qx="all" id="qsall" ${t.sub?'':'hidden'}>Send everything again</button></div>
   <div class="qrspeed"><button class="btn" data-qx="slow">Slower</button><span id="qsfps"></span><button class="btn" data-qx="fast">Faster</button></div>
   <div class="seg" id="qssz" style="margin:8px 0 4px">${SIZES.map(([b,l])=>`<button data-qx="size" data-b="${b}" class="${b===t.B?'on':''}">${l}</button>`).join('')}</div>
-  <p class="hint" style="text-align:center">Pieces go out in order and loop. There are no repair codes, so a missed piece comes round again on the next loop. Ultra needs an excellent camera and light.</p>
-  <div class="btnrow"><button class="btn" data-qx="pause" id="qspause">Pause</button><button class="btn pri" data-qx="done">Done</button></div>`);
+  <p class="hint" style="text-align:center">${t.v===2?'Repair codes are on: the other phone can rebuild about 1 missing piece in 9, so one pass is usually enough. ':'Repair codes are off, so a missed piece comes round again on the next loop. '}Ultra needs an excellent camera and light.</p>
+  <div class="btnrow"><button class="btn" data-qx="rep">${t.v===2?'Repair: on':'Repair: off'}</button><button class="btn" data-qx="pause" id="qspause">Pause</button><button class="btn pri" data-qx="done">Done</button></div>`);
   const tick=()=>{
    if(TX!==t||!document.getElementById('qsbox'))return;
    if(!t.paused){
     const box=$('#qsbox');box.innerHTML='';box.appendChild(qrCanvas(nextFrame(t),340,'L'));
-    if(!t.drag){const p=$('#qspos');if(p)p.value=Math.min(t.K-1,t.pos)}
+    if(!t.drag){const p=$('#qspos');if(p)p.value=t.sub?t.sp:Math.min(t.T-1,t.pos)}
    }
+   if((t.gt=(t.gt||0)+1)%4===1)drawGrid(t);
    const rate=t.fps*t.B,inf=$('#qsinfo'),fp=$('#qsfps');
-   if(inf)inf.textContent=`Piece ${t.pos.toLocaleString()} of ${t.K.toLocaleString()} · loop ${t.pass} · ${kbs(rate)}/s · one loop takes about ${fmtT(t.K/t.fps)}`;
+   if(inf)inf.textContent=t.sub?`Catching up: ${t.sub.length.toLocaleString()} pieces they are missing · loop ${t.pass} · ${kbs(rate)}/s · one loop takes about ${fmtT(t.sub.length/t.fps)}`:`Piece ${t.pos.toLocaleString()} of ${t.T.toLocaleString()} · loop ${t.pass} · ${kbs(rate)}/s · one loop takes about ${fmtT(t.T/t.fps)}`;
    if(fp)fp.textContent=t.fps+' per second';
    t.timer=setTimeout(tick,1000/t.fps);
   };
   tick();
  }
- document.addEventListener('input',e=>{if(e.target.id!=='qspos'||!TX)return;TX.drag=true;TX.pos=+e.target.value;TX.seq=Math.max(1,TX.seq)});
+ document.addEventListener('input',e=>{if(e.target.id!=='qspos'||!TX)return;TX.drag=true;if(TX.sub)TX.sp=+e.target.value;else TX.pos=+e.target.value;TX.seq=Math.max(1,TX.seq)});
  document.addEventListener('change',e=>{if(e.target.id==='qspos'&&TX)TX.drag=false});
  document.addEventListener('click',e=>{
   const m=e.target.closest('[data-qx]');if(!m||!TX)return;const k=m.dataset.qx,t=TX;
   if(k==='done'){stop();closeSheet();return}
+  if(k==='scanr'){openScanner();return}
+  if(k==='all'){t.sub=null;t.need=null;const p=$('#qspos');if(p)p.max=t.T-1;const b=$('#qsall');if(b)b.hidden=true;drawGrid(t);return}
   if(k==='pause'){t.paused=!t.paused;m.textContent=t.paused?'Resume':'Pause';return}
   if(k==='slow'||k==='fast'){let i=FPSL.indexOf(t.fps);if(i<0)i=6;i=Math.max(0,Math.min(FPSL.length-1,i+(k==='fast'?1:-1)));t.fps=FPSL[i];return}
   if(k==='size'){resize(+m.dataset.b);return}
+  if(k==='rep'){toggleRep();return}
  });
 
  /* ---------------- receiver ---------------- */
  const RX={};
- const keyOf=(tid,B)=>tid+':'+B;
+ const keyOf=(tid,B,v)=>tid+':'+B+(v===2?':r':'');
  function parse(t){
   const p=t.split('|');if(p.length!==9||p[0]!=='MNS1')return null;
   if(fnv(p.slice(0,8).join('|'))!==p[8])return null;
   const K=+p[2],len=+p[3],B=+p[4],idx=+p[6];
-  if(!(K>0&&K<=800000&&len>0&&len<=MAXS&&B>=50&&B<=1000&&Math.ceil(len/B)===K&&idx>=0&&idx<K))return null;
+  if(!(K>0&&K<=KMAX&&len>0&&len<=MAXS&&B>=50&&B<=1000&&Math.ceil(len/B)===K&&idx>=0&&idx<K))return null;
   if(!/^[A-Za-z0-9_-]{6}$/.test(p[1])||!/^[0-9a-f]{8}$/.test(p[5]))return null;
   let d;try{d=unb64u(p[7])}catch(e){return null}if(d.length!==B)return null;
-  return {tid:p[1],K,len,B,crc:p[5],idx,data:d};
+  return {v:1,tid:p[1],K,len,B,crc:p[5],idx,data:d};
+ }
+ function parse2(t){
+  const p=t.split('|');if(p.length!==10||p[0]!=='MNS2')return null;
+  if(fnv(p.slice(0,9).join('|'))!==p[9])return null;
+  const K=+p[2],len=+p[3],B=+p[4],blk=+p[6],r=+p[7];
+  if(!(K>0&&K<=KMAX&&len>0&&len<=MAXS&&B>=50&&B<=1000&&Math.ceil(len/B)===K&&Number.isInteger(blk)&&Number.isInteger(r)&&blk>=0&&r>=0))return null;
+  const d=Math.min(D,K-blk*D);if(d<=0||r>=d+pOf(d))return null;
+  if(!/^[A-Za-z0-9_-]{6}$/.test(p[1])||!/^[0-9a-f]{8}$/.test(p[5]))return null;
+  let x;try{x=unb64u(p[8])}catch(e){return null}if(x.length!==B)return null;
+  return {v:2,tid:p[1],K,len,B,crc:p[5],blk,r,data:x};
+ }
+ let oomT=0,rxWL=null,rxIdle=0;
+ /* keep the receiving screen awake while pieces are coming in, and let go 90 s after they stop */
+ const rxRel=()=>{clearTimeout(rxIdle);if(rxWL){const w=rxWL;rxWL=null;try{w.release()}catch(e){}}};
+ const rxWake=async()=>{clearTimeout(rxIdle);rxIdle=setTimeout(rxRel,90000);try{if(navigator.wakeLock&&!rxWL&&document.visibilityState==='visible'){rxWL=await navigator.wakeLock.request('screen');rxWL.addEventListener('release',()=>{rxWL=null})}}catch(e){}};
+ const nChunks=st=>Math.ceil(st.buf.length/CH);
+ const markD=(st,g)=>{const a=g*st.B;st.dch.add(a>>>20);st.dch.add((a+st.B-1)>>>20);st.dirty=true};
+ async function clearSaved(st){try{await idbSet('qrs:'+st.key,null);if(st.len>16000000)for(let c=0;c<nChunks(st);c++)await idbSet('qrs:'+st.key+':c'+c,null)}catch(e){}}
+ const comp=st=>st.v===2?st.ndone>=st.nb:st.got>=st.K;
+ const progOf=st=>st.v===2?st.prog:st.got;
+ /* after loading saved progress: work out what each block has, and rebuild blocks that already have enough */
+ function recount(st){
+  st.got=0;for(let i=0;i<st.T;i++)if(st.have[i])st.got++;
+  if(st.v!==2)return;
+  st.prog=0;st.ndone=0;
+  for(let b=0;b<st.nb;b++){
+   const d=Math.min(D,st.K-b*D),po=st.K+st.L.pOff[b];let dat=0,par=0;
+   for(let i=0;i<d;i++)if(st.have[b*D+i])dat++;
+   for(let j=0;j<pOf(d);j++)if(st.have[po+j])par++;
+   st.bdat[b]=dat;st.bg[b]=dat+par;st.bdone[b]=0;
+   if(dat>=d){st.bdone[b]=1;st.ndone++}else if(dat+par>=d&&decodeBlock(st,b)){st.bdone[b]=1;st.ndone++}
+   st.prog+=Math.min(st.bg[b],d);
+  }
  }
  async function getState(f){
-  const key=keyOf(f.tid,f.B);let st=RX[key];if(st)return st;
-  st={key,tid:f.tid,K:f.K,len:f.len,B:f.B,crc:f.crc,buf:new Uint8Array(f.K*f.B),have:new Uint8Array(f.K),got:0,hi:0,dup:0,hdr:null,t0:Date.now(),times:[],lastUi:0,dirty:false,sv:0};
-  if(f.len<=16000000){try{const sv=await idbGet('qrs:'+key);if(sv&&sv.len===f.len&&sv.crc===f.crc&&sv.buf&&sv.have){st.buf=sv.buf;st.have=sv.have;for(let i=0;i<f.K;i++)if(st.have[i])st.got++}}catch(e){}}
-  RX[key]=st;return st;
+  const key=keyOf(f.tid,f.B,f.v);let st=RX[key];if(st){if(st.ready)await st.ready;return st}
+  const L=f.v===2?layout(f.K):null,T=f.K+(L?L.PT:0);
+  let buf;try{buf=new Uint8Array(T*f.B)}catch(e){if(Date.now()-oomT>20000){oomT=Date.now();toast('This device does not have enough free memory for a file this big. Close other apps, or ask for a smaller one.')}return null}
+  st={key,v:f.v,tid:f.tid,K:f.K,T,L,nb:L?L.nb:0,len:f.len,B:f.B,crc:f.crc,buf,have:new Uint8Array(T),got:0,hi:0,dup:0,hdr:null,t0:Date.now(),times:[],lastUi:0,dirty:false,sv:0,dch:new Set(),saving:false,ready:null,
+   bg:L?new Uint16Array(L.nb):null,bdat:L?new Uint16Array(L.nb):null,bdone:L?new Uint8Array(L.nb):null,ndone:0,prog:0};
+  RX[key]=st;
+  st.ready=(async()=>{
+   try{
+    const sv=await idbGet('qrs:'+key);
+    if(sv&&sv.len===f.len&&sv.crc===f.crc&&sv.have&&sv.have.length===T){
+     if(!sv.big&&sv.buf&&sv.buf.length===st.buf.length&&f.len<=16000000){st.buf=sv.buf;st.have=sv.have}
+     else if(sv.big&&sv.chunks===nChunks(st)){
+      const miss=[];
+      for(let c=0;c<sv.chunks;c++){const part=await idbGet('qrs:'+key+':c'+c);if(part&&part.length===Math.min(CH,st.buf.length-c*CH))st.buf.set(part,c*CH);else miss.push(c)}
+      st.have=sv.have;
+      for(const c of miss){const a=Math.floor(c*CH/f.B),z=Math.min(T-1,Math.floor(((c+1)*CH-1)/f.B));for(let i=a;i<=z;i++)st.have[i]=0}
+     }
+    }
+    recount(st);
+   }catch(e){}
+  })();
+  try{await st.ready}finally{st.ready=null}
+  if(progOf(st)>0)toast('Picking up where you left off: '+Math.floor(progOf(st)/st.K*100)+'% already saved.');
+  return st;
  }
  function persist(st){
-  if(st.len>16000000||!st.dirty||Date.now()-st.sv<8000)return;st.sv=Date.now();st.dirty=false;
-  try{idbSet('qrs:'+st.key,{len:st.len,crc:st.crc,buf:st.buf,have:st.have,t:Date.now()})}catch(e){}
+  if(!st.dirty||st.saving||Date.now()-st.sv<8000)return;st.sv=Date.now();st.dirty=false;
+  if(st.len<=16000000){try{idbSet('qrs:'+st.key,{len:st.len,crc:st.crc,buf:st.buf,have:st.have,t:Date.now()})}catch(e){}return}
+  /* big file: save only the 1 MB blocks that changed, then the list of which pieces are in them */
+  st.saving=true;const ds=[...st.dch],hv=st.have.slice();st.dch.clear();
+  (async()=>{try{for(const c of ds)await idbSet('qrs:'+st.key+':c'+c,st.buf.slice(c*CH,Math.min(st.buf.length,(c+1)*CH)));await idbSet('qrs:'+st.key,{len:st.len,crc:st.crc,have:hv,t:Date.now(),big:1,chunks:nChunks(st)})}catch(e){}st.saving=false})();
  }
+ let lastSt=null;
+ /* progress strip: at most 300 pieces in one row; each cell covers a stretch of the file */
+ function gridDims(units){const cells=Math.min(units,300),cols=cells,cs=360/cells;return {cells,cols,cs,rows:1}}
+ const cellMap=(units,cells)=>{const m=new Uint16Array(units);for(let c=0;c<cells;c++){const a=Math.floor(c*units/cells),z=Math.floor((c+1)*units/cells);for(let u=a;u<z;u++)m[u]=c}return m};
+ const unitRange=(units,cells,c)=>[Math.floor(c*units/cells),Math.floor((c+1)*units/cells)];
+ function cellFr(st,c,cells){
+  const v2=st.v===2,units=v2?st.nb:st.K,[a,z]=unitRange(units,cells,c);let n=0,tot=0;
+  if(v2){for(let i=a;i<z;i++){const d=Math.min(D,st.K-i*D);n+=st.bdone[i]?d:Math.min(st.bg[i],d);tot+=d}}
+  else{for(let i=a;i<z;i++)n+=st.have[i];tot=z-a}
+  return n/Math.max(1,tot);
+ }
+ /* the reply code the receiver shows: which cells are still incomplete */
+ function replyOf(st){
+  const units=st.v===2?st.nb:st.K,cl=gridDims(units),by=new Uint8Array(Math.ceil(cl.cells/8));
+  for(let c=0;c<cl.cells;c++)if(cellFr(st,c,cl.cells)<1)by[c>>3]|=1<<(c&7);
+  const h=['MNR1',st.tid,st.B,st.v,units,cl.cells,b64u(by)].join('|');return h+'|'+fnv(h);
+ }
+ function showReply(){
+  const st=lastSt;if(!st)return;const sc=$('#qrscan');if(!sc)return;
+  let o=$('#qrreply');if(o)o.remove();
+  o=document.createElement('div');o.id='qrreply';o.style.cssText='position:fixed;inset:0;z-index:60;background:#fff;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center';
+  o.innerHTML='<div style="font-size:16px;font-weight:600">Show this to the sender</div><div id="qrrbox"></div><div style="font-size:13.5px;max-width:320px;opacity:.75">On their phone: open the file window and tap “Scan reply”. They will then send only what you are missing.</div><button class="btn pri" data-qk2="replyx">Back to scanning</button>';
+  sc.appendChild(o);
+  const draw=()=>{const b=$('#qrrbox');if(!b||!document.getElementById('qrreply'))return;b.innerHTML='';b.appendChild(qrCanvas(replyOf(st),300,'L'));setTimeout(draw,2000)};draw();
+ }
+ document.addEventListener('click',e=>{const k=e.target.closest('[data-qk2]');if(!k)return;const a=k.dataset.qk2;
+  if(a==='reply')showReply();
+  else if(a==='replyx'){const o=$('#qrreply');if(o)o.remove()}
+ });
  function ui(st,force){
-  const now=Date.now();if(!force&&now-st.lastUi<250)return;st.lastUi=now;
+  const now=Date.now();if(!force&&now-st.lastUi<(st.K>300000?1000:250))return;st.lastUi=now;
   const el=$('#qrprog');if(!el)return;el.hidden=false;
-  const pc=Math.floor(st.got/st.K*100);el.querySelector('i').style.width=pc+'%';
+  const v2=st.v===2,prog=progOf(st),pc=Math.floor(prog/st.K*100);el.querySelector('i').style.width=pc+'%';
+  lastSt=st;
   let cv=el.querySelector('canvas');
-  if(!cv){cv=document.createElement('canvas');cv.width=360;cv.height=16;cv.style.cssText='width:100%;height:16px;border-radius:8px;margin:2px 0 8px;background:rgba(127,127,127,.22);display:block';el.insertBefore(cv,el.querySelector('span'))}
-  const g=cv.getContext('2d'),bins=Math.min(st.K,360);g.clearRect(0,0,360,16);
-  const bw=360/bins;
-  for(let b=0;b<bins;b++){
-   const a=Math.floor(b*st.K/bins),z=Math.floor((b+1)*st.K/bins);let c=0;for(let i=a;i<z;i++)c+=st.have[i];
-   const fr=c/Math.max(1,z-a);if(fr>0){g.fillStyle='rgba(60,190,110,'+(0.25+0.75*fr)+')';g.fillRect(b*bw,0,Math.ceil(bw),16)}
+  if(!cv){cv=document.createElement('canvas');cv.style.cssText='width:100%;height:28px;border-radius:4px;margin:2px 0 8px;background:rgba(127,127,127,.22);display:block';el.insertBefore(cv,el.querySelector('span'))}
+  const cl=gridDims(v2?st.nb:st.K);cv.width=360;cv.height=28;
+  const g=cv.getContext('2d'),pf=st.pf&&st.pf.length===cl.cells?st.pf:(st.pf=new Float32Array(cl.cells));let fresh=false;g.clearRect(0,0,360,28);
+  for(let c=0;c<cl.cells;c++){
+   const fr=cellFr(st,c,cl.cells),x=c*cl.cs;
+   if(fr>0){const nw=fr>pf[c]+0.001&&pf[c]>=0&&st.pfInit;g.fillStyle=nw?'#d6ffe6':'rgba(60,190,110,'+(0.3+0.7*fr)+')';if(nw)fresh=true;g.fillRect(x,0,Math.ceil(cl.cs),28)}
+   pf[c]=fr;
   }
-  g.fillStyle='rgba(255,255,255,.9)';g.fillRect(Math.min(358,st.hi/st.K*360),0,2,16);
-  const ts=st.times.filter(x=>now-x<6000),rate=ts.length?ts.length/Math.max(1,Math.min(6,(now-ts[0])/1000)):0,missing=st.K-st.got;
-  let first=-1;for(let i=0;i<st.K;i++)if(!st.have[i]){first=i;break}
+  st.pfInit=true;if(fresh&&!st.fl){st.fl=setTimeout(()=>{st.fl=0;if(lastSt===st){st.pf.fill(-1);ui(st,true)}},350)}
+  if(!v2){g.fillStyle='rgba(255,255,255,.95)';const hc=Math.min(cl.cells-1,Math.floor(st.hi/st.K*cl.cells));g.fillRect(hc*cl.cs,0,Math.max(2,cl.cs),28)}
+  const ts=st.times.filter(x=>now-x<6000),rate=ts.length?ts.length/Math.max(1,Math.min(6,(now-ts[0])/1000)):0,missing=st.K-prog;
   let hint='';
-  if(missing&&first>=0&&first<st.hi-2)hint='<br>Missed a spot around '+Math.round(first/st.K*100)+'%. It comes round again, or ask the sender to drag the slider there.';
-  else if(missing)hint='<br>Waiting for the rest…';
+  if(!v2){let first=-1;for(let i=0;i<st.K;i++)if(!st.have[i]){first=i;break}
+   if(missing&&first>=0&&first<st.hi-2)hint='<br>Missed a spot around '+Math.round(first/st.K*100)+'%. It comes round again, or ask the sender to drag the slider there.';
+   else if(missing)hint='<br>Waiting for the rest…'}
+  else if(missing)hint='<br>Repair codes on: missed pieces get rebuilt. Waiting for the rest…';
+  if(!el.querySelector('[data-qk2="reply"]')){const bt=document.createElement('button');bt.className='btn';bt.dataset.qk2='reply';bt.textContent='Show my progress to the sender';bt.style.margin='8px 0 0';el.appendChild(bt)}
   const span=el.querySelector('span');
-  span.innerHTML=`${st.got.toLocaleString()} of ${st.K.toLocaleString()} pieces · ${pc}%<br>${kbs(rate*st.B)}/s · ${missing.toLocaleString()} missing`+(rate>0&&missing?' · about '+fmtT(missing/rate)+' left':'')+hint;
+  span.innerHTML=`${prog.toLocaleString()} of ${st.K.toLocaleString()} pieces · ${pc}%<br>${kbs(rate*st.B)}/s · ${missing.toLocaleString()} to go`+(rate>0&&missing?' · about '+fmtT(missing/rate)+' left':'')+hint;
   const s=$('#qrstat');if(s)s.textContent=st.hdr?'Receiving “'+sstr(st.hdr.obj.name,60)+'”. Keep the camera on the codes.':'Receiving a file stream. Keep the camera on the codes.';
  }
  async function feedS(txt){
@@ -7173,43 +7422,74 @@ async function sendConn(fl){
   if(txt.startsWith('MNS0|')){
    const i=txt.indexOf('|',5);if(i<0)return false;const tid=txt.slice(5,i);let r;try{r=await openMsg(txt.slice(i+1))}catch(e){return false}
    const o=r&&r.obj;if(!o||o.t!=='sfile'||o.tid!==tid||!(o.size>0&&o.size<=MAXS)||typeof o.sha!=='string'||o.sha.length!==43)return false;
-   for(const st of Object.values(RX))if(st.tid===tid&&st.len===o.size&&!st.hdr){st.hdr={obj:o,r};ui(st,true);if(st.got>=st.K)return await finish(st)}
+   for(const st of Object.values(RX))if(st.tid===tid&&st.len===o.size&&!st.hdr){st.hdr={obj:o,r};ui(st,true);if(comp(st))return await finish(st)}
    RX.__hdr=RX.__hdr||{};RX.__hdr[tid]={obj:o,r};return false;
   }
-  const f=parse(txt);if(!f)return false;
-  const st=await getState(f);if(st.K!==f.K||st.len!==f.len||st.crc!==f.crc)return false;
+  const f=parse(txt)||parse2(txt);if(!f)return false;
+  const st=await getState(f);if(!st)return false;if(st.K!==f.K||st.len!==f.len||st.crc!==f.crc)return false;
   if(!st.hdr&&RX.__hdr&&RX.__hdr[f.tid]&&RX.__hdr[f.tid].obj.size===f.len)st.hdr=RX.__hdr[f.tid];
-  if(f.idx>st.hi)st.hi=f.idx;
-  if(!st.have[f.idx]){st.buf.set(f.data,f.idx*f.B);st.have[f.idx]=1;st.got++;st.dirty=true;st.times.push(Date.now());if(st.times.length>400)st.times.splice(0,st.times.length-400)}else st.dup++;
-  ui(st,false);persist(st);
-  if(st.got>=st.K&&st.hdr)return await finish(st);
-  if(st.got>=st.K)ui(st,true);
+  if(f.v===2){
+   const b=f.blk,d=Math.min(D,st.K-b*D),g=f.r<d?b*D+f.r:st.K+st.L.pOff[b]+(f.r-d);
+   if(st.have[g]||st.bdone[b])st.dup++;
+   else{
+    st.buf.set(f.data,g*st.B);st.have[g]=1;st.got++;markD(st,g);
+    const useful=st.bg[b]<d;st.bg[b]++;if(useful){st.prog++;st.times.push(Date.now());if(st.times.length>400)st.times.splice(0,st.times.length-400)}
+    if(f.r<d)st.bdat[b]++;
+    if(st.bdat[b]>=d){st.bdone[b]=1;st.ndone++}
+    else if(st.bg[b]>=d&&decodeBlock(st,b)){st.bdone[b]=1;st.ndone++}
+   }
+  }else{
+   if(f.idx>st.hi)st.hi=f.idx;
+   if(!st.have[f.idx]){st.buf.set(f.data,f.idx*f.B);st.have[f.idx]=1;st.got++;markD(st,f.idx);st.times.push(Date.now());if(st.times.length>400)st.times.splice(0,st.times.length-400)}else st.dup++;
+  }
+  ui(st,false);persist(st);rxWake();
+  if(comp(st)&&st.hdr)return await finish(st);
+  if(comp(st))ui(st,true);
   return false;
  }
  async function finish(st){
-  if(st.fin)return false;st.fin=true;
+  if(st.fin)return false;st.fin=true;rxRel();
   const bytes=st.buf.subarray(0,st.len);
+  if(st.len>50000000)toast('Checking the file…');
   let ok=false;try{ok=(await sha(bytes))===st.hdr.obj.sha}catch(e){}
-  if(!ok){delete RX[st.key];try{idbSet('qrs:'+st.key,null)}catch(e){}toast('That transfer was damaged. Please start it again.');return false}
+  if(!ok){delete RX[st.key];clearSaved(st);toast('That transfer was damaged. Please start it again.');return false}
   const o=st.hdr.obj,r=st.hdr.r,known=isTrusted(r.k),from=sstr(o.n,40)||'Unknown device';
-  const nm0=sstr(o.name,100).replace(/[^\w.\- ()]+/g,'_')||'file',ext=extOf(nm0);
-  if(!okAny(ext)){delete RX[st.key];return false}
-  const mime=mimeAny(ext,bytes.subarray(0,16)),blob=new Blob([bytes],{type:mime||'application/octet-stream'});
-  delete RX[st.key];try{idbSet('qrs:'+st.key,null)}catch(e){}
-  const f={id:'',name:nm0,ext,m:mime||'application/octet-stream',size:st.len,url:URL.createObjectURL(blob),big:true,blob};
-  QP={kind:'files',k:r.k,name:from,files:[f]};
+  const files=[];let nm0=sstr(o.name,100).replace(/[^\w.\- ()]+/g,'_')||'file';
+  if(o.bundle===1){
+   let off=0,list=[];
+   try{
+    if(String.fromCharCode(bytes[0],bytes[1],bytes[2],bytes[3])!=='MNB1')throw 0;
+    const ml=new DataView(bytes.buffer,bytes.byteOffset,bytes.length).getUint32(4,true);if(!(ml>0&&ml<=8000000))throw 0;
+    list=JSON.parse(new TextDecoder().decode(bytes.subarray(8,8+ml)));off=8+ml;
+    if(!Array.isArray(list)||!list.length||list.length>2000)throw 0;
+    let tot=off;for(const e of list){if(!Array.isArray(e)||!Number.isInteger(e[1])||e[1]<0)throw 0;tot+=e[1]}if(tot!==bytes.length)throw 0;
+   }catch(e){delete RX[st.key];clearSaved(st);toast('That bundle could not be read.');return false}
+   for(const e of list){const nm=sstr(e[0],100).replace(/[^\w.\- ()]+/g,'_')||'file',ex=extOf(nm),sz=e[1];
+    if(okAny(ex)&&sz>0){const part=bytes.subarray(off,off+sz),mi=mimeAny(ex,part.subarray(0,16))||'application/octet-stream',bl=new Blob([part],{type:mi});files.push({id:'',name:nm,ext:ex,m:mi,size:sz,url:URL.createObjectURL(bl),big:true,blob:bl})}
+    off+=sz}
+   if(!files.length){delete RX[st.key];clearSaved(st);toast('None of those files can be opened here.');return false}
+   nm0=files.length+' file'+(files.length>1?'s':'');
+  }else{
+   const ext=extOf(nm0);
+   if(!okAny(ext)){delete RX[st.key];clearSaved(st);return false}
+   const mime=mimeAny(ext,bytes.subarray(0,16)),blob=new Blob([bytes],{type:mime||'application/octet-stream'});
+   files.push({id:'',name:nm0,ext,m:mime||'application/octet-stream',size:st.len,url:URL.createObjectURL(blob),big:true,blob});
+  }
+  delete RX[st.key];clearSaved(st);
+  QP={kind:'files',k:r.k,name:from,files};
   const cp=window.__canPreview;if(cp&&!cp.__nb){const w=x=>!x.big&&cp(x);w.__nb=1;window.__canPreview=w}
   try{closeScanner()}catch(e){}
-  openSheet(`<h3>Received “${esc(nm0)}”</h3><div class="qrwho ${known?'ok':'new'}"><b>${devIcon(r.dt)}${esc(from)}</b><code>${esc(r.fp)}</code><span>${known?'Trusted device':'New device, not trusted yet'}</span></div><p class="hint">Checked against the sender’s signature and fingerprint. Nothing is opened. Tap the arrow to save it.</p>${filesHtml([f])}<div class="btnrow"><button class="btn pri" data-qr="close">Done</button></div>`);
+  openSheet(`<h3>Received “${esc(nm0)}”</h3><div class="qrwho ${known?'ok':'new'}"><b>${devIcon(r.dt)}${esc(from)}</b><code>${esc(r.fp)}</code><span>${known?'Trusted device':'New device, not trusted yet'}</span></div><p class="hint">Checked against the sender’s signature and fingerprint. Nothing is opened. Tap the arrow to save it.</p>${filesHtml(files)}<p class="hint">Tap the arrow to save to this device, or keep it in the page you have open.</p><div class="btnrow">${files.some(f=>window.__canKeep&&window.__canKeep(f))?'<button class="btn" data-qk="keep">Keep in this page</button>':''}<button class="btn pri" data-qr="close">Done</button></div>`);
   return true;
  }
  const _qf=qrFeed;
  qrFeed=async function(txt,single){
   const t=String(txt||'');
-  if(t.startsWith('MNS1|')||t.startsWith('MNS0|'))return feedS(t);
+  if(t.startsWith('MNS1|')||t.startsWith('MNS2|')||t.startsWith('MNS0|'))return feedS(t);
+  if(t.startsWith('MNR1|'))return feedReply(t);
   return _qf.apply(this,arguments);
  };
- window.__qrStream={start,stop,nextFrame,dataFrame,prep,feed:feedS,get tx(){return TX},get rx(){return RX}};
+ window.__qrStream={replyOf,feedReply,gridDims,start,stop,nextFrame,dataFrame,prep,sha256Js,layout,buildOrd,feed:feedS,get tx(){return TX},get rx(){return RX}};
 })();
 
 /* Share a look preset: QR, Connect, copy code or the system share sheet. Receiving offers to add it (and optionally apply it). */
@@ -8674,6 +8954,7 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
   const nx=B[i+1];if(!nx||nx.type==='image')B.splice(i+1,0,blk('p','',B[i].ind));
   normalize();renderBlocks();touch();return B[i];
  }
+ window.__keepImage=async f=>{const res=await fitPage(f);await placeAt(B.length-1,res,String(f.name||'').replace(/\.[^.]+$/,'').slice(0,80));return true};
  function delBlock(b){snapshot();selImg=null;const i=B.indexOf(b);if(i<0)return;B.splice(i,1);if(!B.length)B.push(blk('p',''));renderBlocks();touch()}
  CMDS.push({t:'Image',d:'Upload or paste a picture',g:'▣',type:'image',kw:'picture photo upload',init:b=>{b.text='';Object.assign(b,mkImg('',''))},after:i=>{const nx=B[i+1];if(!nx||nx.type==='image'){B.splice(i+1,0,blk('p','',B[i].ind))}renderBlocks();pickFor(B[i].id)}});
  /* ---- clipboard, save, viewer ---- */
@@ -8784,7 +9065,7 @@ function imgExt(id){const u=(IMG[id]||'').slice(0,30);return /png/.test(u)?'png'
     const u8=await sealBytes({t:'img',n:devName(),ts:Date.now(),title:s.title.slice(0,200),m:'image/jpeg',w:r.w,h:r.h,d:b64u(r.bytes)});
     c=s.cache[k]={r,u8,K:Math.ceil(u8.length/300)}}catch(e){if(SD===s&&info)info.textContent='Could not prepare this image.';return}}
   if(SD!==s||s.pre!==k)return;
-  if($('#isinfo'))$('#isinfo').textContent=`${c.r.w}×${c.r.h} · ${kb(c.r.bytes.length)} · about ${c.K} codes, ${Math.max(1,Math.ceil(c.K*1.1/8))} s at 8 per second`;
+  if($('#isinfo'))$('#isinfo').textContent=`${c.r.w}×${c.r.h} · ${kb(c.r.bytes.length)} · about ${c.K} codes, ${Math.max(1,Math.ceil(c.K*1.1/(S.set.qrDense?12:15)))} s at ${S.set.qrDense?12:15} per second`;
   const g=document.querySelector('[data-is=go]');if(g)g.disabled=false;
  }
  document.addEventListener('click',async e=>{
